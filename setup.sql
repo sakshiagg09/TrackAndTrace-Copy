@@ -1,0 +1,13 @@
+CREATE TABLE Shipments (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ContainerNumber NVARCHAR(100) NOT NULL,
+    ShipmentNumber NVARCHAR(100),
+    Origin NVARCHAR(200),
+    Destination NVARCHAR(200),
+    Vessel NVARCHAR(200),
+    Voyage NVARCHAR(200),
+    Status NVARCHAR(100),
+    ETA DATETIME2,
+    ETD DATETIME2,
+    Modified DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+);

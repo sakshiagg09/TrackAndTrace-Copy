@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Custom global tweaks ---- */
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  @apply bg-gray-50 text-gray-800 antialiased;
+}
+
+/* Optional: reset root wrapper */
+#root {
+  max-width: none;
+  padding: 0;
+  text-align: left;
+}

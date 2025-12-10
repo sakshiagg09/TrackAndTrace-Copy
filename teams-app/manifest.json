@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "c8d93100-1111-4444-9999-abcdef123456",
+  "name": {
+    "short": "React App",
+    "full": "React App in Microsoft Teams"
+  },
+  "description": {
+    "short": "Your deployed React application hosted on Netlify.",
+    "full": "This is your React application deployed on Netlify, now accessible directly inside Microsoft Teams as a personal app."
+  },
+  "developer": {
+    "name": "NAV IT Consulting GmbH",
+    "websiteUrl": "https://nav-it.com",
+    "privacyUrl": "https://nav-it.com/privacy",
+    "termsOfUseUrl": "https://nav-it.com/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#FFFFFF",
+  "staticTabs": [
+    {
+      "entityId": "react-app-tab",
+      "name": "React App",
+      "contentUrl": "https://ashy-cliff-0a01f9703.3.azurestaticapps.net/",
+      "websiteUrl": "https://ashy-cliff-0a01f9703.3.azurestaticapps.net/",
+      "scopes": [
+        "personal"
+      ]
+    }
+  ],
+  "webApplicationInfo": {
+    "id": "d6dd72a1-e382-4891-8077-4fc7d1cc747c",
+    "resource": "api://glittery-begonia-c8d931.netlify.app/d6dd72a1-e382-4891-8077-4fc7d1cc747c"
+  },
+  "validDomains": [
+    "ashy-cliff-0a01f9703.3.azurestaticapps.net/"
+  ]
+}

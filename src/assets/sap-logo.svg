@@ -1,0 +1,14 @@
+<svg width="140" height="40" viewBox="0 0 140 40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SAP logo">
+  <!-- Modernized SAP-like logo: blue rounded rectangle with white letters and a subtle right triangle accent -->
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0%" stop-color="#0072C6" />
+      <stop offset="100%" stop-color="#0b84e6" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="110" height="40" rx="8" fill="url(#g)" />
+  <!-- Triangle accent on the right to resemble the SAP mark -->
+  <polygon points="110,0 140,20 110,40" fill="#0072C6" opacity="0.95" />
+  <!-- White SAP letters (stylized) -->
+  <text x="14" y="27" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="16" font-weight="800" fill="#ffffff">SAP</text>
+</svg>

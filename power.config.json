@@ -1,0 +1,21 @@
+{
+  "appId": "fceff7bc-4e2a-4586-9853-bbb8a164fbb5",
+  "appDisplayName": "Ocean Tracking App",
+  "description": null,
+  "environmentId": "d48e1f3c-28b9-e460-b2d9-74132e0eca44",
+  "buildPath": "./dist",
+  "buildEntryPoint": "index.html",
+  "logoPath": "Default",
+  "localAppUrl": "http://localhost:3000/",
+  "connectionReferences": {
+    "acdad933-dfc0-485f-868a-49dda88828ce": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+      "displayName": "SharePoint",
+      "dataSources": [
+        "sharepointonline"
+      ],
+      "dataSets": {}
+    }
+  },
+  "databaseReferences": {}
+}
