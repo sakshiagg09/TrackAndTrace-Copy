@@ -4,11 +4,18 @@ import PageWrapper from "../components/layout/PageWrapper";
 import SearchBar from "../components/SearchBar";
 import ShipmentsTable from "../components/ShipmentsTable";
 import { fetchSimpleFieldConfig } from "../utils/simpleFieldConfig";
-import { getAccessToken } from "../utils/graphClient";   
-import { CircularProgress, Box, Alert } from "@mui/material";
+import { getAccessToken } from "../utils/graphClient";
+import { CircularProgress, Box, Alert, Button, Stack } from "@mui/material";
+
 interface GraphItem {
   id: string;
   fields: Record<string, unknown>;
+}
+
+interface UIFieldConfig {
+  title: string;
+  technicalName: string;
+  visible: boolean;
 }
 
 const ShipmentsListPage: React.FC = () => {
@@ -17,43 +24,36 @@ const ShipmentsListPage: React.FC = () => {
   const [cfgLoading, setCfgLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cfgError, setCfgError] = useState<string | null>(null);
-interface UIFieldConfig {
-  title: string;
-  technicalName: string;
-  visible: boolean;
-}
 
-const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
-
+  const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
   const [filterMap, setFilterMap] = useState<Record<string, string>>({});
 
+  /* ---------------- LOAD DATA ---------------- */
   useEffect(() => {
     async function loadAll() {
-      // reset UI states
       setError(null);
       setCfgError(null);
       setLoading(true);
       setCfgLoading(true);
 
-      /** 1) Load field configuration (from SQL backend through API) **/
+      /** 1) Load field configuration **/
       try {
-        const cfg = await fetchSimpleFieldConfig(); 
+        const cfg = await fetchSimpleFieldConfig();
         setFieldDefs(cfg ?? []);
       } catch (e: unknown) {
         console.error("[ShipmentsListPage] field config error", e);
         const msg = e instanceof Error ? e.message : String(e);
         setCfgError(msg);
-        setFieldDefs([]); // fallback UI defaults
+        setFieldDefs([]); 
       } finally {
         setCfgLoading(false);
       }
-      
 
-      /** 2) Load tracking data (from Azure Function + DB) **/
+      /** 2) Load tracking data **/
       try {
-        const token = await getAccessToken(); // 👈 correct auth provider
+        const token = await getAccessToken();
         const res = await fetch("/api/Shipments", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         });
 
         if (!res.ok) throw new Error(`API Error ${res.status}`);
@@ -72,7 +72,7 @@ const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
     loadAll();
   }, []);
 
-  /** 3) Filter rows based on UI field filter values **/
+  /* ---------------- FILTER LOGIC ---------------- */
   const filteredRows = useMemo(() => {
     if (!rows.length) return [];
     if (!fieldDefs || Object.keys(filterMap).length === 0) return rows;
@@ -80,18 +80,99 @@ const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
     return rows.filter((r) => {
       for (const [technicalName, filterValue] of Object.entries(filterMap)) {
         if (!filterValue) continue;
-        const cellVal = (r.fields?.[technicalName] ?? "").toString().toLowerCase();
+
+        const cellVal = (r.fields?.[technicalName] ?? "")
+          .toString()
+          .toLowerCase();
+
         if (!cellVal.includes(filterValue.toLowerCase())) return false;
       }
       return true;
     });
   }, [rows, filterMap, fieldDefs]);
 
-  /** 4) Render UI **/
+
+  /* ---------------- UPDATED EVENT HANDLER ---------------- */
+  async function handleEvent(eventCode: string) {
+    console.log("🔘 Button clicked:", eventCode);
+
+    const fo_id = "6300003074"; // hardcoded for now
+    const StopId = "SP_1000"; // hardcoded for now
+    const event = "DEPT"
+
+    try {
+      /* ============ 1️⃣ DEPARTURE → GET FO DETAILS ============ */
+      if (eventCode === "DEPARTURE") {
+        console.log("📤 Calling GET /api/getEvent");
+
+        const response = await fetch(`/api/getEvent/${fo_id}`, {
+  method: "GET"
+});
+
+
+        const data = await response.json();
+        console.log("📥 GET Response:", data);
+
+        if (data.success) {
+          alert(
+            "FO DETAILS RECEIVED ✓\n\n" +
+            JSON.stringify(data.data, null, 2)
+          );
+        } else {
+          alert(
+            "FAILED TO FETCH FO DETAILS ✗\n" +
+            JSON.stringify(data.error, null, 2)
+          );
+        }
+
+        return; // STOP HERE — DO NOT POST EVENT
+      }
+
+      /* ============ 2️⃣ OTHER EVENTS → POST EVENT ============ */
+      console.log("📤 Calling POST /api/postEvent with:", {
+        fo_id,
+        event,
+        StopId
+      });
+
+      const response = await fetch(`/api/postEvent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fo_id,
+          event,
+          StopId
+        })
+      });
+
+      const data = await response.json();
+      console.log("📥 POST Response:", data);
+
+      if (data.success) {
+        alert(
+          `EVENT POSTED SUCCESSFULLY ✓ (${eventCode})\n\n` +
+          JSON.stringify(data.tm_response, null, 2)
+        );
+      } else {
+        alert(
+          "EVENT POST FAILED ✗\n" +
+          JSON.stringify(data.error, null, 2)
+        );
+      }
+
+    } catch (err) {
+      console.error("🔥 Frontend error:", err);
+      alert(`Frontend error: ${err}`);
+    }
+  }
+
+
+  /* ---------------- RENDER UI ---------------- */
   return (
     <PageWrapper>
       <div className="max-w-7xl mx-auto">
 
+        {/* FIELD CONFIG LOAD STATE */}
         {cfgLoading ? (
           <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
             <CircularProgress size={20} />
@@ -103,8 +184,29 @@ const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
           </Alert>
         ) : null}
 
+        {/* SEARCH BAR */}
         <SearchBar fieldDefs={fieldDefs} onFilter={(map) => setFilterMap(map)} />
 
+        {/* ⭐ EVENT BUTTONS ⭐ */}
+        <Stack direction="row" spacing={2} sx={{ mt: 2, mb: 2 }}>
+          <Button variant="contained" onClick={() => handleEvent("DEPARTURE")}>
+            Departure
+          </Button>
+
+          <Button variant="contained" color="secondary" onClick={() => handleEvent("ARRIVAL")}>
+            Arrival
+          </Button>
+
+          <Button variant="contained" color="success" onClick={() => handleEvent("CHECKIN")}>
+            Check-In
+          </Button>
+
+          <Button variant="contained" color="warning" onClick={() => handleEvent("CHECKOUT")}>
+            Check-Out
+          </Button>
+        </Stack>
+
+        {/* DATA LOADING */}
         {loading && (
           <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
             <CircularProgress size={20} />
@@ -112,8 +214,14 @@ const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
           </Box>
         )}
 
-        {error && !loading && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+        {/* ERRORS */}
+        {error && !loading && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
 
+        {/* TABLE */}
         {!loading && !error && (
           <ShipmentsTable rows={filteredRows} fieldDefs={fieldDefs} />
         )}
