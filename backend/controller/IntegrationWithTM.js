@@ -13,13 +13,11 @@ function convertEventCode(eventCode) {
   switch ((eventCode ?? "").toUpperCase()) {
     case "ARRIVAL": return "ARRI";
     case "DEPARTURE": return "DEPT";
-    case "DELAY": return "DLY";
-    case "POD": return "POD";
-    case "UNPLANNED": return "UNPLN";
     default: return eventCode;
   }
 }
 
+/* ------------------ CSRF FETCH ------------------ */
 async function fetchCsrf() {
   const url = "http://103.152.79.22:8002/sap/opu/odata/SAP/ZSKY_SRV/$metadata";
 
@@ -28,25 +26,35 @@ async function fetchCsrf() {
     url,
     headers: {
       "x-csrf-token": "Fetch",
-      Authorization: `Basic ${process.env.SAP_BASIC}`
+      Authorization: `Basic ${process.env.SAP_BASIC}`,
+      Accept: "application/xml"
     }
   });
 
-  return {
-    token: res.headers["x-csrf-token"],
-    cookie: res.headers["set-cookie"][0].split(";")[0]
-  };
+  const token = res.headers["x-csrf-token"];
+  const cookieHeader = res.headers["set-cookie"];
+
+  if (!token) {
+    throw new Error("CSRF token missing from SAP response");
+  }
+
+  const cookie = cookieHeader
+    ? cookieHeader.map(c => c.split(";")[0]).join("; ")
+    : "";
+
+  return { token, cookie };
 }
 
 /* ------------------ TM GET ------------------ */
 async function getEvent(req, res) {
   try {
-    const fo_id = req.params.fo_id;
+    const fo_id = req.params.fo_id || req.query.fo_id;
 
     if (!fo_id)
       return res.status(400).json({ success: false, message: "fo_id required" });
 
-    const url = `http://103.152.79.22:8002/sap/opu/odata/SAP/ZSKY_SRV/SearchFOSet(FoId='${fo_id}')?$format=json`;
+    const url =
+      `http://103.152.79.22:8002/sap/opu/odata/SAP/ZSKY_SRV/SearchFOSet(FoId='${fo_id}')?$format=json`;
 
     const result = await axios.get(url, {
       headers: {
@@ -56,59 +64,60 @@ async function getEvent(req, res) {
     });
 
     const payload = normalize(result.data)[0];
-
-    res.json({ success: true, data: payload });
+    return res.json({ success: true, data: payload });
 
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 
 /* ------------------ TM POST ------------------ */
 async function postEvent(req, res) {
   try {
-    const { fo_id, event, StopId} = req.body;
-    console.log("Request Body:", fo_id, event, StopId);
+    const { FoId, Action, StopId } = req.body;
 
-    if (!fo_id || !event)
+    if (!FoId || !Action)
       return res.status(400).json({
         success: false,
-        message: "fo_id and event_code required"
+        message: "FoId and Action required"
       });
 
-    // Convert to SAP event code
-   // const mappedCode = convertEventCode(event_code);
-
-    // Fetch CSRF token + cookie
+    // Fetch CSRF
     const { token, cookie } = await fetchCsrf();
 
-    const url = `http://103.152.79.22:8002/sap/opu/odata/SAP/ZSKY_SRV`;
+    const url =
+      "http://103.152.79.22:8002/sap/opu/odata/SAP/ZSKY_SRV/EventsReportingSet";
 
-    /* -------------------------------
-       🔥 SAP TM REQUIRED PAYLOAD
-       Hardcoded for now as per your requirement
-       FoId, Action, StopId
-    -------------------------------- */
     const payload = {
-      "FoId": fo_id,           // "6300003009"
-      "Action": event,    // "DEPT"
-      "StopId": "SP_1000",     // hardcoded stop ID
+      FoId,
+      Action,
+      StopId: StopId ?? "SP_1000"
     };
 
-    const result = await axios.post(url, payload, {
+    console.log("SAP POST payload:", payload);
+
+    const result = await axios({
+      method: "POST",
+      url,
+      data: payload,
       headers: {
         Authorization: `Basic ${process.env.SAP_BASIC}`,
         "x-csrf-token": token,
         Cookie: cookie,
-        path: '/EventsReportingSet',
+        Accept: "application/json",
         "Content-Type": "application/json"
       }
     });
 
-    res.json({ success: true, tm_response: result.data });
+    return res.json({ success: true, tm_response: result.data });
 
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("SAP Error:", err.response?.data || err.message);
+
+    return res.status(err.response?.status || 500).json({
+      success: false,
+      error: err.response?.data || err.message
+    });
   }
 }
 
