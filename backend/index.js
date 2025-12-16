@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 //const {postEvent} = require('./Connection/ConnectWithTM');
-const {getEvent, postEvent} = require('./controller/IntegrationWithTM');
+const {getEvent, postEvent, getItems, postPOD, postDelay} = require('./controller/IntegrationWithTM');
 const { connectDB, getPool, closeDB, sql } = require('./config/db');
 
 const app = express();
@@ -18,6 +18,9 @@ app.get('/api/health', (req, res) => {
 //app.post("/api/postEvent", postEvent);
 app.get("/api/getEvent/:fo_id", getEvent);
 app.post("/api/postEvent", postEvent);
+// app.get("/api/getItems", getItems);
+app.post("/api/postPOD", postPOD);
+app.post("/api/postDelay", postDelay);
 //app.use("/api/tm", tmRoutes);
 
 // Test database

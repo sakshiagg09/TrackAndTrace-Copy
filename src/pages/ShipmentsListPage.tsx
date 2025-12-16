@@ -1,4 +1,3 @@
-// src/pages/ShipmentsListPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import PageWrapper from "../components/layout/PageWrapper";
 import SearchBar from "../components/SearchBar";
@@ -7,63 +6,34 @@ import { fetchSimpleFieldConfig } from "../utils/simpleFieldConfig";
 import { getAccessToken } from "../utils/graphClient";
 import { CircularProgress, Box, Alert, Button, Stack } from "@mui/material";
 
-interface GraphItem {
-  id: string;
-  fields: Record<string, unknown>;
-}
-
-interface UIFieldConfig {
-  title: string;
-  technicalName: string;
-  visible: boolean;
-}
-
 const ShipmentsListPage: React.FC = () => {
-  const [rows, setRows] = useState<GraphItem[]>([]);
+  const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cfgLoading, setCfgLoading] = useState(true);
+  const [fieldDefs, setFieldDefs] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [cfgError, setCfgError] = useState<string | null>(null);
-
-  const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
   const [filterMap, setFilterMap] = useState<Record<string, string>>({});
 
   /* ---------------- LOAD DATA ---------------- */
   useEffect(() => {
     async function loadAll() {
-      setError(null);
-      setCfgError(null);
-      setLoading(true);
-      setCfgLoading(true);
-
-      /** 1) Load field configuration **/
       try {
         const cfg = await fetchSimpleFieldConfig();
         setFieldDefs(cfg ?? []);
-      } catch (e: unknown) {
-        console.error("[ShipmentsListPage] field config error", e);
-        const msg = e instanceof Error ? e.message : String(e);
-        setCfgError(msg);
+      } catch {
         setFieldDefs([]);
-      } finally {
-        setCfgLoading(false);
       }
 
-      /** 2) Load tracking data **/
       try {
         const token = await getAccessToken();
+
         const res = await fetch("/api/Shipments", {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        if (!res.ok) throw new Error(`API Error ${res.status}`);
-
         const data = await res.json();
         setRows(data ?? []);
-      } catch (e: unknown) {
-        console.error("[ShipmentsListPage] data load error", e);
-        const msg = e instanceof Error ? e.message : String(e);
-        setError(msg);
+      } catch (err: any) {
+        setError(String(err));
       } finally {
         setLoading(false);
       }
@@ -74,119 +44,129 @@ const ShipmentsListPage: React.FC = () => {
 
   /* ---------------- FILTER LOGIC ---------------- */
   const filteredRows = useMemo(() => {
-    if (!rows.length) return [];
-    if (!fieldDefs || Object.keys(filterMap).length === 0) return rows;
+    return rows.filter((r) =>
+      Object.entries(filterMap).every(([key, val]) => {
+        if (!val) return true;
+        const cell = (r.fields?.[key] ?? "").toString().toLowerCase();
+        return cell.includes(val.toLowerCase());
+      })
+    );
+  }, [rows, filterMap]);
 
-    return rows.filter((r) => {
-      for (const [technicalName, filterValue] of Object.entries(filterMap)) {
-        if (!filterValue) continue;
-
-        const cellVal = (r.fields?.[technicalName] ?? "")
-          .toString()
-          .toLowerCase();
-
-        if (!cellVal.includes(filterValue.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [rows, filterMap, fieldDefs]);
-
-  /* ---------------- UPDATED EVENT HANDLER ---------------- */
+  /* ---------------- EVENT HANDLER ---------------- */
   async function handleEvent(eventCode: string) {
-    console.log("🔘 Button clicked:", eventCode);
+    const FoId = "6300003096";
+    const StopId = "1000000000";
+   // const Location = "1000000000";
 
-    // Hardcoded for now — replace with dynamic values later
-    const FoId = "6300003074";
-    const StopId = "SP_1000";
+    /* --- NORMAL EVENTS --- */
+    if (["DEPARTURE", "ARRIVAL", "DELAY"].includes(eventCode)) {
+      const map: any = { DEPARTURE: "DEPT", ARRIVAL: "ARRV", DELAY: "DELAY" };
+      const payload = { FoId, Action: map[eventCode], StopId };
 
-    try {
-      /* ============ DEPARTURE → GET FO DETAILS ============ */
-      if (eventCode === "DEPARTURE") {
-        console.log("📤 Calling GET /api/getEvent/:fo_id");
-
-        const response = await fetch(`/api/getEvent/${FoId}`, {
-          method: "GET"
-        });
-
-        // if response isn't JSON you'll see parse error here — check network tab
-        const data = await response.json();
-        console.log("📥 GET Response:", data);
-
-        if (data.success) {
-          alert("FO DETAILS RECEIVED ✓\n\n" + JSON.stringify(data.data, null, 2));
-        } else {
-          alert("FAILED TO FETCH FO DETAILS ✗\n" + JSON.stringify(data.error, null, 2));
-        }
-
-        return; // stop: do not post event
-      }
-
-      /* ============ ARRIVAL (and other) → POST EVENT ============ */
-      // You asked Arrival to post Action="DEPT". If you want other mappings change here.
-      const Action = eventCode === "ARRIVAL" ? "DEPT" : eventCode;
-
-      const payload = {
-        FoId,
-        Action,
-        StopId
-      };
-
-      console.log("📤 Calling POST /api/postEvent with:", payload);
-
-      const response = await fetch(`/api/postEvent`, {
+      const res = await fetch("/api/postEvent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
-      console.log("📥 POST Response:", data);
+      const json = await res.json();
+      alert(json.success ? `${eventCode} ✓` : JSON.stringify(json.error));
+      return;
+     // const payload2 = { FoId, Action: map[eventCode], StopId };
+    //  console.log("Frontend payload:", payload2);
+    }
 
-      if (data.success) {
-        alert(`EVENT POSTED SUCCESSFULLY ✓ (${Action})\n\n` + JSON.stringify(data.tm_response, null, 2));
-      } else {
-        alert("EVENT POST FAILED ✗\n" + JSON.stringify(data.error, null, 2));
-      }
+    /* --- POD NO DISCREPANCY --- */
+    if (eventCode === "POD_NODIS") {
+      const payload = { FoId, StopId, Discrepency: "" };
 
-    } catch (err) {
-      console.error("🔥 Frontend error:", err);
-      alert(`Frontend error: ${err}`);
+      const res = await fetch("/api/postPOD", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      alert(json.success ? "POD No Discrepancy ✓" : JSON.stringify(json.error));
+      return;
+    }
+
+    /* --- POD WITH DISCREPANCY --- */
+    /* --- POD WITH DISCREPANCY --- */
+/*if (eventCode === "POD_DIS") {
+  const resItems = await fetch(`/api/getItems?FoId=${FoId}&Location=${Location}`);
+  const itemsJson = await resItems.json();
+
+  if (!itemsJson.success) {
+    alert("Failed to fetch items");
+    return;
+  }
+
+  // ✔ Use ItemId (SAP expects this)
+  const items = itemsJson.items.map((it: any) => ({
+    item_id: it.ItemId,              // ✔ FIXED
+    stop_id: it.StopId,              // ✔ correct SAP stop ID
+    ActQty: it.Quantity || "1",      // ✔ send actual quantity
+    ActQtyUom: it.QuantityUom || "EA"
+  }));
+
+  const payload = {
+    FoId,
+    StopId,
+    Discrepency: "X",
+    Items: items        // ✔ DO NOT STRINGIFY
+  };
+
+  const res = await fetch("/api/postPOD", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const json = await res.json();
+  alert(json.success ? "POD Discrepancy ✓" : JSON.stringify(json.error));
+} */
+
+  /* ------------------ DELAY ------------------ */
+    if (eventCode === "DELAY_ONLY") {
+      const payload = {
+        FoId,
+        StopId,
+        ETA: "20251208230000",
+        RefEvent: "Arrival",
+        EventCode: "Traffic Jam"
+      };
+
+      const res = await fetch("/api/postDelay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      alert(json.success ? "Delay Reported ✓" : JSON.stringify(json.error));
+      return;
     }
   }
 
-  /* ---------------- RENDER UI ---------------- */
+  /* ---------------- RENDER ---------------- */
   return (
     <PageWrapper>
       <div className="max-w-7xl mx-auto">
-        {cfgLoading ? (
-          <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
-            <CircularProgress size={20} />
-            <div>Loading filter configuration…</div>
-          </Box>
-        ) : cfgError ? (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Could not load filter configuration: {cfgError}. Using defaults.
-          </Alert>
-        ) : null}
-
-        <SearchBar fieldDefs={fieldDefs} onFilter={(map) => setFilterMap(map)} />
+        <SearchBar fieldDefs={fieldDefs} onFilter={setFilterMap} />
 
         <Stack direction="row" spacing={2} sx={{ mt: 2, mb: 2 }}>
           <Button variant="contained" onClick={() => handleEvent("DEPARTURE")}>Departure</Button>
           <Button variant="contained" color="secondary" onClick={() => handleEvent("ARRIVAL")}>Arrival</Button>
-          <Button variant="contained" color="success" onClick={() => handleEvent("CHECKIN")}>Check-In</Button>
-          <Button variant="contained" color="warning" onClick={() => handleEvent("CHECKOUT")}>Check-Out</Button>
+          <Button variant="contained" color="warning" onClick={() => handleEvent("DELAY_ONLY")}>Delay</Button>
+          <Button variant="contained" color="success" onClick={() => handleEvent("POD_NODIS")}>POD – No Discrepancy</Button>
+          <Button variant="contained" color="error" onClick={() => handleEvent("POD_DIS")}>POD – Discrepancy</Button>
         </Stack>
 
-        {loading && (
-          <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
-            <CircularProgress size={20} /> <div>Loading Shipment Data…</div>
-          </Box>
-        )}
-
-        {error && !loading && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
-
-        {!loading && !error && <ShipmentsTable rows={filteredRows} fieldDefs={fieldDefs} />}
+        {loading && <CircularProgress />}
+        {error && <Alert severity="error">{error}</Alert>}
+        {!loading && <ShipmentsTable rows={filteredRows} fieldDefs={fieldDefs} />}
       </div>
     </PageWrapper>
   );
