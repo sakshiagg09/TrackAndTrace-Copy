@@ -26,9 +26,10 @@ import TuneIcon from "@mui/icons-material/Tune";
 import CloseIcon from "@mui/icons-material/Close";
 import type { SimpleFieldDef } from "../utils/simpleFieldConfig";
 
+
 export type EventRow = {
   id: string;
-  fields: Record<string, any>;
+  fields: Record<string, unknown>;
 };
 
 interface EventsTableProps {
@@ -112,6 +113,47 @@ function renderStatusIcon(status: unknown) {
       <HourglassEmptyIcon fontSize="small" />
     </Tooltip>
   );
+}
+/* ================== AZURE SQL SAFE HELPERS ================== */
+/* ADDED ONLY FOR AZURE SQL NULL / CASE / DATETIME SAFETY */
+
+function getSqlValue(
+  fields: Record<string, unknown>,
+  technicalName: string
+): unknown {
+  if (!fields) return undefined;
+
+  // Exact match
+  if (technicalName in fields) {
+    return fields[technicalName];
+  }
+
+  const lower = technicalName.toLowerCase();
+
+  // Case-insensitive match (Azure SQL safe)
+  const exactKey = Object.keys(fields).find(
+    (k) => k.toLowerCase() === lower
+  );
+  if (exactKey) return fields[exactKey];
+
+  // Partial fallback (legacy data safety)
+  const partialKey = Object.keys(fields).find(
+    (k) => k.toLowerCase().includes(lower)
+  );
+  if (partialKey) return fields[partialKey];
+
+  return undefined;
+}
+
+function formatSqlValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+
+  // Azure SQL datetime formatting
+  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
+    return new Date(value).toLocaleString();
+  }
+
+  return String(value);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -314,7 +356,7 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
     dragSrcIndex.current = index;
     try {
       e.dataTransfer.setData("text/plain", "");
-    } catch {}
+    } catch { /* empty */ }
     const img = document.createElement("div");
     img.style.width = "0px";
     img.style.height = "0px";
@@ -323,7 +365,7 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
     dragImageRef.current = img;
     try {
       e.dataTransfer.setDragImage(img, 0, 0);
-    } catch {}
+    } catch { /* empty */ }
     e.dataTransfer.effectAllowed = "move";
   };
   const handleDragOver = (e: React.DragEvent) => {
@@ -344,19 +386,11 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
   };
 
   /* render cell (tries several fuzzy lookups) */
-  const renderCell = (f: SimpleFieldDef, itemFields: Record<string, any>) => {
-    const raw = (() => {
-      if (!itemFields) return undefined;
-      if (f.technicalName in itemFields) return itemFields[f.technicalName];
-      const lower = f.technicalName.toLowerCase();
-      const exact = Object.keys(itemFields).find((k) => k.toLowerCase() === lower);
-      if (exact) return (itemFields as any)[exact];
-      const contains = Object.keys(itemFields).find((k) => k.toLowerCase().includes(lower));
-      if (contains) return (itemFields as any)[contains];
-      return undefined;
-    })();
+  const renderCell = (f: SimpleFieldDef, itemFields: Record<string, unknown>) => {
+// 🔧 Azure SQL safe value resolution
+const raw = getSqlValue(itemFields, f.technicalName);
 
-    let value = raw ?? "—";
+    const value = raw ?? "—";
 
     if (isStatusField(f.technicalName)) return renderStatusIcon(value);
 
@@ -370,27 +404,28 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
             overflow: "hidden",
             textOverflow: "ellipsis",
           }}
-          title={(value as any[]).join(", ")}
+          title={(value as unknown[]).join(", ")}
         >
-          {(value as any[]).join(", ")}
+          {(value as unknown[]).join(", ")}
         </span>
       );
     }
 
-    return (
-      <span
-        style={{
-          display: "inline-block",
-          width: "100%",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-        title={String(value)}
-      >
-        {String(value)}
-      </span>
-    );
+return (
+  <span
+    style={{
+      display: "inline-block",
+      width: "100%",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    }}
+    title={formatSqlValue(value)}
+  >
+    {formatSqlValue(value)}
+  </span>
+);
+
   };
 
   const gridTemplate = colWidths.map((w) => `${w}px`).join(" ");

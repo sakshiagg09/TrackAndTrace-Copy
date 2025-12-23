@@ -1,9 +1,14 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-//const {postEvent} = require('./Connection/ConnectWithTM');
-const {getEvent, postEvent} = require('./controller/IntegrationWithTM');
-const { connectDB, getPool, closeDB, sql } = require('./config/db');
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import { connectDB } from "./config/db.js";
+
+// 🔹 Import route files (one per table)
+import shipmentEventsRoutes from "./routes/shipmentEvents.js";
+import trackingDataRoutes from "./routes/trackingdata.js";
+import uiFieldConfigRoutes from "./routes/uiFieldsconfig.js";
+import eventsRoutes from "./routes/eventsRoutes.js";
+import Events from "./routes/Events.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -11,74 +16,29 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is running' });
+/* -------------------- API ROUTES -------------------- */
+app.use("/api", shipmentEventsRoutes);
+app.use("/api", trackingDataRoutes);
+app.use("/api", uiFieldConfigRoutes);
+app.use("/api", eventsRoutes);
+
+/* -------------------- HEALTH CHECK -------------------- */
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "Backend is running 🚀" });
 });
-//app.post("/api/postEvent", postEvent);
-app.get("/api/getEvent/:fo_id", getEvent);
-app.post("/api/postEvent", postEvent);
-//app.use("/api/tm", tmRoutes);
 
-// Test database
-// app.get('/api/test-db', async (req, res) => {
-//   try {
-//     const pool = getPool();
-//     const result = await pool.request().query('SELECT 1 as connected');
-//     res.json({
-//       success: true,
-//       message: 'Database connected successfully',
-//       data: result.recordset,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       error: error.message,
-//     });
-//   }
-// });
-
-// Get all tables
-// app.get('/api/tables', async (req, res) => {
-//   try {
-//     const pool = getPool();
-//     const result = await pool.request().query(`
-//       SELECT TABLE_NAME 
-//       FROM INFORMATION_SCHEMA.TABLES 
-//       WHERE TABLE_TYPE = 'BASE TABLE'
-//     `);
-//     res.json({
-//       success: true,
-//       data: result.recordset,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       error: error.message,
-//     });
-//   }
-// });
-
-// Start server
-const startServer = async () => {
+/* -------------------- START SERVER -------------------- */
+(async () => {
   try {
-    // await connectDB();
+    await connectDB();
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📊 Test DB: http://localhost:${PORT}/api/test-db`);
-      console.log(`📋 Tables: http://localhost:${PORT}/api/tables`);
+      console.log(`🚀 Backend running on http://localhost:${PORT}`);
+      console.log(`📦 Shipment Events → /api/shipment-events`);
+      console.log(`📍 Tracking Data   → /api/tracking-data`);
+      console.log(`🧩 UI Field Config → /api/ui-fields-config`);
     });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error.message);
+  } catch (err) {
+    console.error("❌ Failed to start backend:", err);
     process.exit(1);
   }
-};
-
-// Graceful shutdown
-// process.on('SIGINT', async () => {
-//   console.log('\n🛑 Shutting down...');
-//   await closeDB();
-//   process.exit(0);
-// });
-
-startServer();
+})();

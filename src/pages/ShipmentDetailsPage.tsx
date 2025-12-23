@@ -1,4 +1,3 @@
-// src/pages/ShipmentDetailsPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -15,192 +14,224 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import PageWrapper from "../components/layout/PageWrapper";
 import ShipmentTrackingMap from "../components/ShipmentTrackingMap";
 import EventsTable from "../components/EventsTable";
-import type { JSX } from "@emotion/react/jsx-runtime";
 
-/* ---------------- TYPES ---------------- */
+/* =========================================================
+   TYPES
+========================================================= */
+
 interface UIFieldConfig {
   title: string;
   technicalName: string;
-  visible: boolean;
+  visibleInAdapt: boolean;
 }
+
 interface ShipmentData {
   [key: string]: unknown;
 }
+
 interface ShipmentEvent {
   id: string;
   [key: string]: unknown;
 }
 
-/* ---------------- SQL API WRAPPERS ---------------- */
-async function apiGet<T>(url: string): Promise<T | null> {
+/* =========================================================
+   API HELPERS
+========================================================= */
+
+async function apiGet<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) return null;
+  if (!res.ok) {
+    throw new Error(`API failed: ${url}`);
+  }
   return res.json();
 }
 
-async function fetchFieldConfig(): Promise<UIFieldConfig[]> {
-  return (await apiGet<UIFieldConfig[]>("/api/UIFieldConfig")) ?? [];
+async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
+  return apiGet("/api/ui-fields-config");
 }
-async function fetchShipment(container: string): Promise<ShipmentData | null> {
-  return await apiGet<ShipmentData>(
-    `/api/GetShipment?container=${encodeURIComponent(container)}`
+
+async function fetchTrackingData(container: string): Promise<ShipmentData | null> {
+  const data = await apiGet<ShipmentData[]>(
+    `/api/tracking-data?container=${encodeURIComponent(container)}`
   );
+  return data?.[0] ?? null;
 }
+
 async function fetchShipmentEvents(container: string): Promise<ShipmentEvent[]> {
-  return (
-    (await apiGet<ShipmentEvent[]>(
-      `/api/GetShipmentEvents?container=${encodeURIComponent(container)}`
-    )) ?? []
+  return apiGet(
+    `/api/shipment-events?container=${encodeURIComponent(container)}`
   );
 }
 
-/* ---------------- EVENT FIELD DEF (STATIC) ---------------- */
-const EVENT_FIELD_DEFS: UIFieldConfig[] = [
-  { title: "Event Name", technicalName: "EventName", visible: true },
-  { title: "Code", technicalName: "Code", visible: true },
-  { title: "Location", technicalName: "Location", visible: true },
-  { title: "Location Code", technicalName: "LocationCode", visible: true },
-  { title: "Container No.", technicalName: "ContainerNumber", visible: true },
-  { title: "Time", technicalName: "ActualTime", visible: true },
-  { title: "Transport Mode", technicalName: "TransportMode", visible: true },
-  { title: "Has Cargo", technicalName: "HasCargo", visible: true }
+/* =========================================================
+   STATIC EVENT TABLE CONFIG
+========================================================= */
+
+const EVENT_FIELD_DEFS = [
+  { title: "Event Name", technicalName: "EventName", visibleInAdapt: true },
+  { title: "Code", technicalName: "Code", visibleInAdapt: true },
+  { title: "Location", technicalName: "Location", visibleInAdapt: true },
+  { title: "Location Code", technicalName: "LocationCode", visibleInAdapt: true },
+  { title: "Actual Time", technicalName: "ActualTime", visibleInAdapt: true },
+  { title: "Transport Mode", technicalName: "TransportMode", visibleInAdapt: true }
 ];
 
-/* ===========================================================
+/* =========================================================
    MAIN COMPONENT
-=========================================================== */
-export default function ShipmentDetailsPage(): JSX.Element {
-  const { id } = useParams<{ id: string }>();
+========================================================= */
 
-  const [data, setData] = useState<ShipmentData | null>(null);
+export default function ShipmentDetailsPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+
+  const [uiFields, setUiFields] = useState<UIFieldConfig[]>([]);
+  const [shipment, setShipment] = useState<ShipmentData | null>(null);
   const [events, setEvents] = useState<ShipmentEvent[]>([]);
-  const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [loadingEvents, setLoadingEvents] = useState(true);
-  const [cfgLoading, setCfgLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
-  const [titleField, setTitleField] = useState<string | null>(null);
-
-  /* ---------------- Adapt dialog missing state (fix) --------------- */
-  
   /* ---------------- LOAD UI FIELD CONFIG ---------------- */
   useEffect(() => {
-    async function loadCfg() {
-      setCfgLoading(true);
-      const cfg = await fetchFieldConfig();
-      setFieldDefs(cfg);
-      setCfgLoading(false);
-    }
-    loadCfg();
+    fetchUIFieldConfig()
+      .then(setUiFields)
+      .catch(() => setUiFields([]));
   }, []);
 
-  /* ---------------- INIT VISIBLE + TITLE FIELDS ---------------- */
+  /* ---------------- LOAD SHIPMENT + EVENTS ---------------- */
   useEffect(() => {
-    if (!fieldDefs.length) return;
-    const allowed = fieldDefs.filter((d) => d.visible).map((d) => d.technicalName);
-    setVisibleKeys(allowed);
-    setTitleField(allowed[0] ?? null);
-  }, [fieldDefs]);
+    if (typeof id !== "string") return; // ✅ TYPE GUARD
 
-  /* ---------------- LOAD SHIPMENT DETAILS ---------------- */
-  useEffect(() => {
-    if (!id) return;
-    async function load() {
-      setLoading(true);
-      const result = await fetchShipment(id!);
-      if (!result) setError("Shipment not found");
-      setData(result);
-      setLoading(false);
-    }
-    load();
+    const loadAll = async () => {
+      try {
+        setLoading(true);
+
+        const [shipmentData, eventData] = await Promise.all([
+          fetchTrackingData(id),
+          fetchShipmentEvents(id)
+        ]);
+
+        if (!shipmentData) {
+          setError("Shipment not found");
+          return;
+        }
+
+        setShipment(shipmentData);
+        setEvents(eventData);
+      } catch {
+        setError("Failed to load shipment details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAll();
   }, [id]);
 
-  /* ---------------- LOAD SHIPMENT EVENTS ---------------- */
-  useEffect(() => {
-    if (!id) return;
-    async function loadEventsNow() {
-      setLoadingEvents(true);
-      const result = await fetchShipmentEvents(id!);
-      setEvents(result);
-      setLoadingEvents(false);
-    }
-    loadEventsNow();
-  }, [id]);
+  /* ---------------- DERIVED UI FIELDS ---------------- */
+  const visibleFields = useMemo(
+    () => uiFields.filter(f => f.visibleInAdapt),
+    [uiFields]
+  );
 
-  const visibleDefs = useMemo(() => {
-    return fieldDefs.filter((d) => visibleKeys.includes(d.technicalName));
-  }, [visibleKeys, fieldDefs]);
+  /* ---------------- SAFE TITLE VALUE ---------------- */
+  const titleValue = String(
+    shipment?.ContainerNumber ??
+    shipment?.containerNumber ??
+    id ??
+    ""
+  );
 
-  const titleValue = String(data ? data[titleField ?? "ContainerNumber"] : id);
-
+  /* ---------------- STATUS CHIP ---------------- */
   function renderStatusChip(statusValue: unknown) {
     const status = String(statusValue ?? "");
-    if (!status) return <Chip label="—" size="small" sx={{ fontSize: 12 }} />;
+    if (!status) return <Chip label="—" size="small" />;
+
     const s = status.toLowerCase();
-    if (s.includes("active") || s.includes("completed"))
-      return <Chip icon={<CheckCircleIcon />} label={status} color="success" size="small" sx={{ fontSize: 12 }} />;
-    if (s.includes("execution") || s.includes("progress"))
-      return <Chip icon={<ErrorOutlineIcon />} label={status} color="warning" size="small" sx={{ fontSize: 12 }} />;
-    if (s.includes("cancel"))
-      return <Chip icon={<CancelIcon />} label={status} color="error" size="small" sx={{ fontSize: 12 }} />;
-    return <Chip label={status} size="small" sx={{ fontSize: 12 }} />;
+    if (s.includes("active") || s.includes("completed")) {
+      return <Chip icon={<CheckCircleIcon />} label={status} color="success" size="small" />;
+    }
+    if (s.includes("execution") || s.includes("progress")) {
+      return <Chip icon={<ErrorOutlineIcon />} label={status} color="warning" size="small" />;
+    }
+    if (s.includes("cancel") || s.includes("fail")) {
+      return <Chip icon={<CancelIcon />} label={status} color="error" size="small" />;
+    }
+    return <Chip label={status} size="small" />;
   }
 
-  /* ===========================================================
-     UI RENDERING
-  =========================================================== */
+  /* =========================================================
+     RENDER
+  ========================================================= */
+
   return (
     <PageWrapper>
-      <div style={{ maxWidth: "80rem", margin: "0 auto", display: "flex", flexDirection: "column", gap: 20, fontSize: 12 }}>
-        {cfgLoading && <p>Loading field configuration…</p>}
+      <div style={{ maxWidth: "82rem", margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+
         {loading && <p>Loading shipment details…</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {!loading && !error && data && (
-          <Paper elevation={2} style={{ padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Typography style={{ fontWeight: 600, fontSize: 14, color: "#2563eb" }}>{titleValue}</Typography>
-                {renderStatusChip(data.TrackingStatus)}
-              </div>
-
+        {!loading && shipment && (
+          <Paper elevation={2} style={{ padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>
+                {titleValue}
+              </Typography>
+              {renderStatusChip(shipment.TrackingStatus)}
             </div>
 
-            <Divider sx={{ marginBottom: 12 }} />
+            <Divider sx={{ my: 2 }} />
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
-              {visibleDefs.map((def) => (
-                <div key={def.technicalName} style={{ border: "1px solid #e5e7eb", padding: 8, borderRadius: 6, background: "#f9fafb" }}>
-                  <p style={{ margin: 0, fontWeight: 500, color: "#6b7280" }}>{def.title}</p>
-                  <p style={{ margin: 0, color: "#111827" }}>
-                    {String(data[def.technicalName] ?? "—")}
-                  </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 12
+              }}
+            >
+              {visibleFields.map(f => (
+                <div
+                  key={f.technicalName}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    padding: 8,
+                    borderRadius: 6,
+                    background: "#f9fafb"
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>
+                    {f.title}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#111827" }}>
+                    {String(shipment[f.technicalName] ?? "—")}
+                  </div>
                 </div>
               ))}
             </div>
           </Paper>
         )}
 
-        {!loadingEvents && events.length > 0 && (
-          <Paper elevation={2} style={{ padding: 12 }}>
-            <Typography style={{ fontWeight: 600, marginBottom: 8 }}>Tracking Map</Typography>
-            <div style={{ height: 500 }}>
-              <ShipmentTrackingMap
-                events={events.map((e) => ({ id: e.id, fields: e }))}
-                height={500}
-              />
-            </div>
+        {events.length > 0 && (
+          <Paper elevation={2} style={{ padding: 14 }}>
+            <Typography style={{ fontWeight: 600, marginBottom: 8 }}>
+              Tracking Map
+            </Typography>
+            <ShipmentTrackingMap
+              events={events.map(e => ({ id: e.id, fields: e }))}
+              height={520}
+            />
           </Paper>
         )}
 
         <EventsTable
-          rows={events.map((e) => ({ id: e.id, fields: e }))}
+          rows={events.map(e => ({ id: e.id, fields: e }))}
           fieldDefs={EVENT_FIELD_DEFS}
           storageKey={String(id)}
+          
         />
+
       </div>
     </PageWrapper>
   );
 }
+
