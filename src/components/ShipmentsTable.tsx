@@ -39,8 +39,10 @@ export type SimpleFieldDef = {
 
 interface GraphItem {
   id: string;
-  fields: Record<string, any>;
+  fields: Record<string, unknown>;
 }
+
+
 
 interface ShipmentsTableProps {
   rows: GraphItem[];
@@ -128,13 +130,17 @@ function renderStatusIcon(status: unknown) {
 
 /* Render an array of locations as "pointers/steps" (dots connected by a line).
    Expects each element to be string or an object with a label/name. */
-const LocationStrip: React.FC<{ items: any[] }> = ({ items }) => {
+const LocationStrip: React.FC<{ items: unknown[] }> = ({ items }) => {
+
   if (!Array.isArray(items) || items.length === 0) return null;
   // map to display strings
   const labels = items.map((it) => {
     if (it == null) return "";
     if (typeof it === "string") return it;
-    if (typeof it === "object") return (it.label ?? it.name ?? JSON.stringify(it)).toString();
+    if (typeof it === "object") {
+      const obj = it as { label?: unknown; name?: unknown };
+      return (obj.label ?? obj.name ?? JSON.stringify(it)).toString();
+    }
     return String(it);
   });
 
@@ -508,15 +514,15 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({ rows, fieldDefs, storag
   };
 
   /* render helpers */
-  const renderCell = (f: SimpleFieldDef, itemFields: Record<string, any>) => {
+  const renderCell = (f: SimpleFieldDef, itemFields: Record<string, unknown>) => {
     const raw = (() => {
       if (!itemFields) return undefined;
       if (f.technicalName in itemFields) return itemFields[f.technicalName];
       const lower = f.technicalName.toLowerCase();
       const exact = Object.keys(itemFields).find((k) => k.toLowerCase() === lower);
-      if (exact) return (itemFields as any)[exact];
+      if (exact) return (itemFields as Record<string, unknown>)[exact];
       const contains = Object.keys(itemFields).find((k) => k.toLowerCase().includes(lower));
-      if (contains) return (itemFields as any)[contains];
+      if (contains) return (itemFields as Record<string, unknown>)[contains];
       return undefined;
     })();
 
@@ -551,14 +557,15 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({ rows, fieldDefs, storag
       Array.isArray(value) && (lowerName.includes("location") || lowerName.includes("route") || lowerName.includes("path") || lowerName.includes("stops") || lowerName.includes("legs") || lowerName.includes("milestone"));
 
     if (looksLikeLocationArray) {
-      return <LocationStrip items={value as any[]} />;
+      return <LocationStrip items={value as unknown[]} />;
     }
 
     // arrays (non-location) -> join
     if (Array.isArray(value)) {
+      const stringArray = (value as unknown[]).map(v => String(v));
       return (
-        <span style={{ display: "inline-block", width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={(value as any[]).join(", ")}>
-          {(value as any[]).join(", ")}
+        <span style={{ display: "inline-block", width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={stringArray.join(", ")}>
+          {stringArray.join(", ")}
         </span>
       );
     }

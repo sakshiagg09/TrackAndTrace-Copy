@@ -1,69 +1,92 @@
-// src/pages/ShipmentsListPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import PageWrapper from "../components/layout/PageWrapper";
 import SearchBar from "../components/SearchBar";
 import ShipmentsTable from "../components/ShipmentsTable";
-import { fetchSimpleFieldConfig } from "../utils/simpleFieldConfig";
-import { getAccessToken } from "../utils/graphClient";   
-import { CircularProgress, Box, Alert } from "@mui/material";
+import {
+  CircularProgress,
+  Box,
+  Alert
+} from "@mui/material";
+
+/* ---------------- TYPES ---------------- */
+
 interface GraphItem {
   id: string;
   fields: Record<string, unknown>;
 }
 
-const ShipmentsListPage: React.FC = () => {
-  const [rows, setRows] = useState<GraphItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cfgLoading, setCfgLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [cfgError, setCfgError] = useState<string | null>(null);
 interface UIFieldConfig {
   title: string;
   technicalName: string;
   visible: boolean;
+  order?: number;
 }
 
-const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
+/* ---------------- COMPONENT ---------------- */
+
+const ShipmentsListPage: React.FC = () => {
+  const [rows, setRows] = useState<GraphItem[]>([]);
+  const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [cfgLoading, setCfgLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [cfgError, setCfgError] = useState<string | null>(null);
 
   const [filterMap, setFilterMap] = useState<Record<string, string>>({});
 
+  /* ---------------- LOAD DATA ---------------- */
+
   useEffect(() => {
     async function loadAll() {
-      // reset UI states
-      setError(null);
-      setCfgError(null);
       setLoading(true);
       setCfgLoading(true);
+      setError(null);
+      setCfgError(null);
 
-      /** 1) Load field configuration (from SQL backend through API) **/
+      /* ---------- 1. LOAD UI FIELD CONFIG ---------- */
       try {
-        const cfg = await fetchSimpleFieldConfig(); 
-        setFieldDefs(cfg ?? []);
+        const cfgRes = await fetch(
+          "http://localhost:5000/api/ui-fields-config"
+        );
+
+        if (!cfgRes.ok) {
+          throw new Error(`UI config error ${cfgRes.status}`);
+        }
+
+        const cfgData = await cfgRes.json();
+        setFieldDefs(cfgData ?? []);
       } catch (e: unknown) {
-        console.error("[ShipmentsListPage] field config error", e);
-        const msg = e instanceof Error ? e.message : String(e);
-        setCfgError(msg);
-        setFieldDefs([]); // fallback UI defaults
+        console.error("UIFieldConfig error", e);
+        setCfgError(e instanceof Error ? e.message : String(e));
+        setFieldDefs([]);
       } finally {
         setCfgLoading(false);
       }
-      
 
-      /** 2) Load tracking data (from Azure Function + DB) **/
+      /* ---------- 2. LOAD SHIPMENT DATA ---------- */
       try {
-        const token = await getAccessToken(); // 👈 correct auth provider
-        const res = await fetch("/api/Shipments", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const dataRes = await fetch(
+          "http://localhost:5000/api/shipment-events"
+        );
 
-        if (!res.ok) throw new Error(`API Error ${res.status}`);
+        if (!dataRes.ok) {
+          throw new Error(`Shipment API error ${dataRes.status}`);
+        }
 
-        const data = await res.json();
-        setRows(data ?? []);
+        const dbRows = await dataRes.json();
+
+        const mapped: GraphItem[] = (dbRows ?? []).map(
+          (row: Record<string, unknown>, idx: number) => ({
+            id: String(row.Id ?? row.ShipmentId ?? idx),
+            fields: row
+          })
+        );
+
+        setRows(mapped);
       } catch (e: unknown) {
-        console.error("[ShipmentsListPage] data load error", e);
-        const msg = e instanceof Error ? e.message : String(e);
-        setError(msg);
+        console.error("Shipment load error", e);
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
@@ -72,50 +95,64 @@ const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
     loadAll();
   }, []);
 
-  /** 3) Filter rows based on UI field filter values **/
+  /* ---------------- FILTER LOGIC ---------------- */
+
   const filteredRows = useMemo(() => {
     if (!rows.length) return [];
-    if (!fieldDefs || Object.keys(filterMap).length === 0) return rows;
+    if (!Object.keys(filterMap).length) return rows;
 
-    return rows.filter((r) => {
-      for (const [technicalName, filterValue] of Object.entries(filterMap)) {
-        if (!filterValue) continue;
-        const cellVal = (r.fields?.[technicalName] ?? "").toString().toLowerCase();
-        if (!cellVal.includes(filterValue.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [rows, filterMap, fieldDefs]);
+    return rows.filter((r) =>
+      Object.entries(filterMap).every(([key, value]) => {
+        if (!value) return true;
+        const cell = r.fields?.[key];
+        return String(cell ?? "")
+          .toLowerCase()
+          .includes(value.toLowerCase());
+      })
+    );
+  }, [rows, filterMap]);
 
-  /** 4) Render UI **/
+  /* ---------------- RENDER ---------------- */
+
   return (
     <PageWrapper>
       <div className="max-w-7xl mx-auto">
-
-        {cfgLoading ? (
-          <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
+        {cfgLoading && (
+          <Box sx={{ p: 2, display: "flex", gap: 2 }}>
             <CircularProgress size={20} />
-            <div>Loading filter configuration…</div>
-          </Box>
-        ) : cfgError ? (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Could not load filter configuration: {cfgError}. Using defaults.
-          </Alert>
-        ) : null}
-
-        <SearchBar fieldDefs={fieldDefs} onFilter={(map) => setFilterMap(map)} />
-
-        {loading && (
-          <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
-            <CircularProgress size={20} />
-            <div>Loading Shipment Data…</div>
+            <div>Loading column configuration…</div>
           </Box>
         )}
 
-        {error && !loading && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+        {cfgError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Failed to load column configuration: {cfgError}
+          </Alert>
+        )}
+
+        <SearchBar
+          fieldDefs={fieldDefs}
+          onFilter={(map) => setFilterMap(map)}
+        />
+
+        {loading && (
+          <Box sx={{ p: 3, display: "flex", gap: 2 }}>
+            <CircularProgress size={20} />
+            <div>Loading shipment data…</div>
+          </Box>
+        )}
+
+        {error && !loading && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         {!loading && !error && (
-          <ShipmentsTable rows={filteredRows} fieldDefs={fieldDefs} />
+          <ShipmentsTable
+            rows={filteredRows}
+            fieldDefs={fieldDefs}
+          />
         )}
       </div>
     </PageWrapper>
