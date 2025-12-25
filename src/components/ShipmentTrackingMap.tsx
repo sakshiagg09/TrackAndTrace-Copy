@@ -31,8 +31,13 @@ const pinColors = {
 };
 
 function parseLatLng(fields: Record<string, unknown>) {
-  const latRaw = fields?.latitude ?? fields?.Latitude ?? fields?.geoLat ?? fields?.GeoLocation?.Latitude;
-  const lonRaw = fields?.longitude ?? fields?.Longitude ?? fields?.geoLon ?? fields?.GeoLocation?.Longitude;
+  // Safely read a few common coordinate shapes without fighting TS's `unknown`.
+  const f: any = fields as any;
+  const geo: any = f?.GeoLocation ?? f?.geoLocation ?? f?.geolocation;
+
+  const latRaw = f?.latitude ?? f?.Latitude ?? f?.geoLat ?? geo?.Latitude ?? geo?.latitude;
+  const lonRaw = f?.longitude ?? f?.Longitude ?? f?.geoLon ?? geo?.Longitude ?? geo?.longitude;
+
   const lat = latRaw === undefined || latRaw === null ? NaN : parseFloat(String(latRaw));
   const lon = lonRaw === undefined || lonRaw === null ? NaN : parseFloat(String(lonRaw));
   if (isNaN(lat) || isNaN(lon)) return null;

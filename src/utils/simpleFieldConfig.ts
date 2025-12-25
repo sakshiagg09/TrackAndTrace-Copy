@@ -1,8 +1,13 @@
-export interface UIFieldConfig {
+export type SimpleFieldDef = {
   title: string;
   technicalName: string;
   visible: boolean;
-}
+};
+
+// Backward-compatible alias for existing usage
+export interface UIFieldConfig extends SimpleFieldDef {}
+
+
 
 /** Row shape coming from SQL */
 interface DBFieldRow {
