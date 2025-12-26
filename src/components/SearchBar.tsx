@@ -49,22 +49,40 @@ const DEFAULT_VISIBLE_KEYS = allowedKeysFromDefs;
  * Map saved entries (title or technicalName) to canonical technicalNames.
  * Returns mapped array (no duplicates).
  */
-function mapSavedKeysToTechnical(saved: any[], fieldDefs: SimpleFieldDef[]) {
+function mapSavedKeysToTechnical(
+  saved: string[],
+  fieldDefs: SimpleFieldDef[]
+): string[] {
   if (!Array.isArray(saved) || !Array.isArray(fieldDefs)) return [];
+
   const canonicalByLower = new Map<string, string>();
+
   for (const fd of fieldDefs) {
-    canonicalByLower.set(normalizeKey(fd.technicalName), fd.technicalName);
-    canonicalByLower.set(normalizeKey(fd.title ?? ""), fd.technicalName);
+    canonicalByLower.set(
+      normalizeKey(fd.technicalName),
+      fd.technicalName
+    );
+
+    canonicalByLower.set(
+      normalizeKey(fd.title),
+      fd.technicalName
+    );
   }
+
   const mapped: string[] = [];
+
   for (const s of saved) {
-    if (typeof s !== "string") continue;
-    const key = s.toString().trim().toLowerCase();
+    const key = normalizeKey(s);
     const tech = canonicalByLower.get(key);
-    if (tech && !mapped.includes(tech)) mapped.push(tech);
+
+    if (tech && !mapped.includes(tech)) {
+      mapped.push(tech);
+    }
   }
+
   return mapped;
 }
+
 
 const SearchBar: React.FC<SearchBarProps> = ({ fieldDefs, onFilter }) => {
   const navigate = useNavigate();
@@ -280,7 +298,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ fieldDefs, onFilter }) => {
         }
 
         // First attempt: try to parse JSON (previous behavior)
-        let jsonResp: any = null;
+        let jsonResp: Record<string, unknown> | null = null;
         try {
           jsonResp = await resp.clone().json();
         } catch {
@@ -407,18 +425,24 @@ const SearchBar: React.FC<SearchBarProps> = ({ fieldDefs, onFilter }) => {
     const [search, setSearch] = useState("");
     const [local, setLocal] = useState<string[]>(visibleKeys);
 
-    useEffect(() => {
-      if (open) setLocal(visibleKeys);
-    }, [open, visibleKeys]);
+   useEffect(() => {
+  if (open) {
+    setLocal(visibleKeys);
+  }
+}, [open]);
 
     // Only search within allowedDefs
-    const filtered = useMemo(() => {
-      const s = search.trim().toLowerCase();
-      if (!s) return allowedDefs;
-      return allowedDefs.filter(
-        (d) => (d.title ?? d.technicalName).toLowerCase().includes(s) || d.technicalName.toLowerCase().includes(s)
-      );
-    }, [search, allowedDefs]);
+const s = search.trim().toLowerCase();
+
+const filtered = !s
+  ? allowedDefs
+  : allowedDefs.filter(
+      (d) =>
+        (d.title ?? d.technicalName).toLowerCase().includes(s) ||
+        d.technicalName.toLowerCase().includes(s)
+    );
+
+
 
     const toggle = (technicalName: string) =>
       setLocal((p) => (p.includes(technicalName) ? p.filter((k) => k !== technicalName) : [...p, technicalName]));

@@ -24,7 +24,13 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import TuneIcon from "@mui/icons-material/Tune";
 import CloseIcon from "@mui/icons-material/Close";
-import type { SimpleFieldDef } from "../utils/simpleFieldConfig";
+export interface SimpleFieldDef {
+  id?: number;
+  title: string;
+  technicalName: string;
+  visibleInAdapt?: boolean;
+  order?: number;
+}
 
 
 export type EventRow = {
@@ -176,8 +182,9 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
         title: f.title ?? f.technicalName,
         technicalName: f.technicalName,
         visibleInAdapt: f.visibleInAdapt ?? true,
-        order: (f as any).order,
-        id: (f as any).id,
+order: f.order,
+id: f.id,
+
       } as SimpleFieldDef);
     }
     return out;
@@ -189,8 +196,9 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
   // ordering: try to use order property, fallback to title
   const orderedMaster = useMemo(() => {
     return [...adaptable].sort((a, b) => {
-      const oa = (a as any).order ?? 9999;
-      const ob = (b as any).order ?? 9999;
+const oa = a.order ?? 9999;
+const ob = b.order ?? 9999;
+
       if (oa !== ob) return oa - ob;
       return (a.title ?? a.technicalName).localeCompare(b.title ?? b.technicalName);
     });
@@ -227,7 +235,10 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.colWidths)) return parsed.colWidths as number[];
       }
-    } catch {}
+    } catch {
+  // intentionally ignored
+}
+
     return null;
   }, [storageId]);
 
@@ -235,7 +246,12 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
 
   useEffect(() => {
     // when visibleFields length changes reset widths if no saved widths
-    setColWidths((_) => (savedWidths ? savedWidths : initialVisible.map(() => DEFAULT_COLUMN_WIDTH)));
+setColWidths(
+  savedWidths
+    ? savedWidths
+    : initialVisible.map(() => DEFAULT_COLUMN_WIDTH)
+);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialVisible.length]);
 
@@ -253,7 +269,9 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
     try {
       if (selectedId) sessionStorage.setItem(sessionSelectedKey, selectedId);
       else sessionStorage.removeItem(sessionSelectedKey);
-    } catch {}
+    } catch {
+  // intentionally ignored
+}
   }, [selectedId, sessionSelectedKey]);
 
   useEffect(() => {
@@ -273,7 +291,9 @@ const EventsTable: React.FC<EventsTableProps> = ({ rows, fieldDefs, storageKey =
         colWidths: colWidths,
       };
       localStorage.setItem(storageId, JSON.stringify(payload));
-    } catch {}
+    } catch {
+  // intentionally ignored
+}
   }, [visibleKeys, colWidths, storageId]);
 
   // visible field defs in visibleKeys order
