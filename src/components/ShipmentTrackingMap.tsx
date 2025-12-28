@@ -417,7 +417,7 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
               center={points.length ? { lat: points[0].lat, lng: points[0].lng } : { lat: 20, lng: 0 }}
               zoom={3}
               options={{
-                mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID,
+                mapId: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
                 mapTypeId: "roadmap",
                 streetViewControl: false,
                 fullscreenControl: false,
