@@ -4,7 +4,17 @@ import {
   Paper,
   Typography,
   Chip,
-  Divider
+  Divider,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from "@mui/material";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -50,16 +60,22 @@ async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
   return apiGet("/api/ui-fields-config");
 }
 
-async function fetchTrackingData(container: string): Promise<ShipmentData | null> {
+/**
+ * businessKey = ShipmentNo OR ContainerNumber
+ */
+async function fetchTrackingData(businessKey: string): Promise<ShipmentData | null> {
   const data = await apiGet<ShipmentData[]>(
-    `/api/tracking-data?container=${encodeURIComponent(container)}`
+    `/api/tracking-data?key=${encodeURIComponent(businessKey)}`
   );
   return data?.[0] ?? null;
 }
 
-async function fetchShipmentEvents(container: string): Promise<ShipmentEvent[]> {
-  return apiGet(
-    `/api/shipment-events?container=${encodeURIComponent(container)}`
+/**
+ * businessKey = ShipmentNo OR ContainerNumber
+ */
+async function fetchEvents(businessKey: string): Promise<ShipmentEvent[]> {
+  return apiGet<ShipmentEvent[]>(
+    `/api/events?key=${encodeURIComponent(businessKey)}`
   );
 }
 
@@ -68,12 +84,11 @@ async function fetchShipmentEvents(container: string): Promise<ShipmentEvent[]> 
 ========================================================= */
 
 const EVENT_FIELD_DEFS = [
-  { title: "Event Name", technicalName: "EventName", visibleInAdapt: true },
-  { title: "Code", technicalName: "Code", visibleInAdapt: true },
-  { title: "Location", technicalName: "Location", visibleInAdapt: true },
-  { title: "Location Code", technicalName: "LocationCode", visibleInAdapt: true },
-  { title: "Actual Time", technicalName: "ActualTime", visibleInAdapt: true },
-  { title: "Transport Mode", technicalName: "TransportMode", visibleInAdapt: true }
+  { title: "Freight Order ID", technicalName: "FoId", visibleInAdapt: true },
+  { title: "Stop ID", technicalName: "StopId", visibleInAdapt: true },
+  { title: "Action Name", technicalName: "Action_Name", visibleInAdapt: true },
+  { title: "Longitude", technicalName: "EventLong", visibleInAdapt: true },
+  { title: "Latitude", technicalName: "EventLat", visibleInAdapt: true }
 ];
 
 /* =========================================================
@@ -84,9 +99,14 @@ export default function ShipmentDetailsPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
+  const STORAGE_KEY = `shipment_details_fields:${id}`;
+
   const [uiFields, setUiFields] = useState<UIFieldConfig[]>([]);
   const [shipment, setShipment] = useState<ShipmentData | null>(null);
   const [events, setEvents] = useState<ShipmentEvent[]>([]);
+
+  const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
+  const [adaptOpen, setAdaptOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,15 +120,16 @@ export default function ShipmentDetailsPage() {
 
   /* ---------------- LOAD SHIPMENT + EVENTS ---------------- */
   useEffect(() => {
-    if (typeof id !== "string") return; // ✅ TYPE GUARD
+    if (typeof id !== "string") return;
 
     const loadAll = async () => {
       try {
         setLoading(true);
 
+        const businessKey = id;
         const [shipmentData, eventData] = await Promise.all([
-          fetchTrackingData(id),
-          fetchShipmentEvents(id)
+          fetchTrackingData(businessKey),
+          fetchEvents(businessKey)
         ]);
 
         if (!shipmentData) {
@@ -128,10 +149,42 @@ export default function ShipmentDetailsPage() {
     loadAll();
   }, [id]);
 
+  /* ---------------- INIT VISIBLE FIELDS ---------------- */
+  useEffect(() => {
+    if (!uiFields.length) return;
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setVisibleKeys(parsed);
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    setVisibleKeys(
+      uiFields.filter(f => f.visibleInAdapt).map(f => f.technicalName)
+    );
+  }, [uiFields, STORAGE_KEY]);
+
+  /* ---------------- PERSIST FIELD SELECTION ---------------- */
+  useEffect(() => {
+    if (!visibleKeys.length) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleKeys));
+    } catch {
+      /* ignore */
+    }
+  }, [visibleKeys, STORAGE_KEY]);
+
   /* ---------------- DERIVED UI FIELDS ---------------- */
   const visibleFields = useMemo(
-    () => uiFields.filter(f => f.visibleInAdapt),
-    [uiFields]
+    () => uiFields.filter(f => visibleKeys.includes(f.technicalName)),
+    [uiFields, visibleKeys]
   );
 
   /* ---------------- SAFE TITLE VALUE ---------------- */
@@ -173,11 +226,21 @@ export default function ShipmentDetailsPage() {
 
         {!loading && shipment && (
           <Paper elevation={2} style={{ padding: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>
-                {titleValue}
-              </Typography>
-              {renderStatusChip(shipment.TrackingStatus)}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>
+                  {titleValue}
+                </Typography>
+                {renderStatusChip(shipment.TrackingStatus)}
+              </div>
+
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => setAdaptOpen(true)}
+              >
+                Adapt Columns
+              </Button>
             </div>
 
             <Divider sx={{ my: 2 }} />
@@ -216,6 +279,7 @@ export default function ShipmentDetailsPage() {
             <Typography style={{ fontWeight: 600, marginBottom: 8 }}>
               Tracking Map
             </Typography>
+
             <ShipmentTrackingMap
               events={events.map(e => ({ id: e.id, fields: e }))}
               height={520}
@@ -227,11 +291,45 @@ export default function ShipmentDetailsPage() {
           rows={events.map(e => ({ id: e.id, fields: e }))}
           fieldDefs={EVENT_FIELD_DEFS}
           storageKey={String(id)}
-          
         />
+
+        {/* ================= ADAPT COLUMNS DIALOG ================= */}
+        <Dialog open={adaptOpen} onClose={() => setAdaptOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Adapt Columns</DialogTitle>
+          <DialogContent dividers>
+            <List dense>
+              {uiFields.map(f => {
+                const checked = visibleKeys.includes(f.technicalName);
+                return (
+                  <ListItem
+                    key={f.technicalName}
+                    button
+                    onClick={() =>
+                      setVisibleKeys(prev =>
+                        prev.includes(f.technicalName)
+                          ? prev.filter(k => k !== f.technicalName)
+                          : [...prev, f.technicalName]
+                      )
+                    }
+                  >
+                    <ListItemIcon>
+                      <Checkbox checked={checked} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={f.title}
+                      secondary={f.technicalName}
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAdaptOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
 
       </div>
     </PageWrapper>
   );
 }
-

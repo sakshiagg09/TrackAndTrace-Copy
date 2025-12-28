@@ -5,36 +5,34 @@ import { getPool } from "../config/db.js";
 const router = express.Router();
 
 /**
- * GET /api/events?foId=XXXX
- * Fetch shipment-level events from Events table
+ * GET /api/events?key=XXXX
+ * key = ShipmentNo OR ContainerNumber
+ * Events.FoId stores exactly this value
  */
-router.get("/", async (req, res) => {
-  const { foId } = req.query;
+router.get("/events", async (req, res) => {
+  const { key } = req.query;
 
-  if (!foId) {
-    return res.status(400).json({ error: "Missing foId parameter" });
+  if (!key) {
+    return res.status(400).json({ error: "Missing key" });
   }
 
   try {
-    const pool = await getPool(); // ✅ CORRECT
+    const pool = await getPool();
 
+    // ✅ DIRECT MATCH ON FoId
     const result = await pool
       .request()
-      .input("FoId", sql.NVarChar, foId)
+      .input("key", sql.NVarChar, key)
       .query(`
         SELECT *
         FROM dbo.Events
-        WHERE FoId = @FoId
+        WHERE FoId = @key
       `);
 
-    res.status(200).json(result.recordset);
-
+    res.json(result.recordset);
   } catch (err) {
     console.error("❌ Events API error:", err);
-    res.status(500).json({
-      error: "Failed to fetch events",
-      details: err.message
-    });
+    res.status(500).json({ error: "Failed to fetch events" });
   }
 });
 

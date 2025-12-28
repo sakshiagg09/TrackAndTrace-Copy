@@ -42,18 +42,30 @@ function asText(v: unknown, fallback = ""): string {
   }
 }
 
-function parseLatLng(fields: Record<string, unknown>) {
-  const f: any = fields as any;
-  const geo: any = f?.GeoLocation ?? f?.geoLocation ?? f?.geolocation;
+function parseLatLng(fields: Record<string, any>) {
+  const latRaw =
+    fields?.EventLat ??
+    fields?.eventLat ??
+    fields?.latitude ??
+    fields?.Latitude ??
+    fields?.geoLat ??
+    fields?.GeoLocation?.Latitude;
 
-  const latRaw = f?.latitude ?? f?.Latitude ?? f?.geoLat ?? geo?.Latitude ?? geo?.latitude;
-  const lonRaw = f?.longitude ?? f?.Longitude ?? f?.geoLon ?? geo?.Longitude ?? geo?.longitude;
+  const lonRaw =
+    fields?.EventLong ??
+    fields?.eventLong ??
+    fields?.longitude ??
+    fields?.Longitude ??
+    fields?.geoLon ??
+    fields?.GeoLocation?.Longitude;
 
-  const lat = latRaw === undefined || latRaw === null ? NaN : parseFloat(String(latRaw));
-  const lon = lonRaw === undefined || lonRaw === null ? NaN : parseFloat(String(lonRaw));
-  if (isNaN(lat) || isNaN(lon)) return null;
-  return { lat, lng: lon };
+  const lat = latRaw == null ? NaN : parseFloat(String(latRaw));
+  const lng = lonRaw == null ? NaN : parseFloat(String(lonRaw));
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  return { lat, lng };
 }
+
 
 function escapeHtml(s: unknown) {
   if (s === null || s === undefined) return "";
@@ -62,17 +74,23 @@ function escapeHtml(s: unknown) {
 
 function buildListItemHtml(fields: Record<string, unknown>) {
   const title = asText((fields as any)?.EventName ?? (fields as any)?.Code, "Event");
-  const location = asText((fields as any)?.location ?? (fields as any)?.locationCode, "");
-  const time = (fields as any)?.actualTime ?? (fields as any)?.createdAt ?? (fields as any)?.Created ?? "";
-  const tStr = time ? new Date(String(time)).toLocaleString() : "";
+  const stopId = asText((fields as any)?.StopId ?? (fields as any)?.stopId, "—");
+
+  
+
   return `
     <div style="font-size:13px;max-width:260px">
       <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(title)}</div>
-      <div style="font-size:12px;color:#374151;margin-bottom:4px;"><strong>Loc:</strong> ${escapeHtml(location)}</div>
-      <div style="font-size:12px;color:#6b7280;"><strong>Time:</strong> ${escapeHtml(tStr)}</div>
+      <div style="font-size:12px;color:#374151;margin-bottom:4px;">
+        <strong>Stop ID:</strong> ${escapeHtml(stopId)}
+      </div>
+      <div style="font-size:12px;color:#6b7280;">
+  
+      </div>
     </div>
   `;
 }
+
 
 /** create small html pin (circle + optional label) */
 function makeMarkerContent(color: string, label?: string) {
@@ -101,14 +119,17 @@ export default function ShipmentTrackingMap({
   if (!apiKey) {
     return <div style={{ padding: 12, color: "crimson" }}>Missing VITE_GOOGLE_MAPS_API_KEY in env.</div>;
   }
+const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
 
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey,
-    libraries: ["marker"] as any, // for AdvancedMarkerElement
+    libraries: GOOGLE_MAP_LIBRARIES,
+    //libraries: ["marker"] as any, // for AdvancedMarkerElement
   });
 
   const points = useMemo(() => {
+    
     return (events ?? [])
       .map((e) => {
         const coords = parseLatLng(e.fields);
@@ -285,10 +306,8 @@ export default function ShipmentTrackingMap({
             }
 
             const title = asText((f as any).EventName ?? (f as any).Code, "Event");
-            const loc = asText((f as any).location ?? (f as any).locationCode, "—");
-
-            const timeRaw = (f as any).actualTime ?? (f as any).createdAt ?? null;
-            const timeStr = timeRaw ? new Date(String(timeRaw)).toLocaleString() : "—";
+            const stopId = asText((f as any).StopId ?? (f as any).stopId, "—");
+            const timeRaw = (f as any).CreatedAt ?? (f as any).createdAt ?? null;
 
             return (
               <div
@@ -353,12 +372,17 @@ export default function ShipmentTrackingMap({
                 </div>
 
                 <div style={{ marginTop: 6, color: "#374151", fontSize: 13 }}>
-                  <div style={{ marginBottom: 6 }}>
-                    <strong style={{ color: "#374151" }}>Location:</strong>{" "}
-                    <span style={{ color: "#334155" }}>{loc}</span>
-                  </div>
+<div style={{ marginBottom: 6 }}>
+  <strong>Stop ID:</strong>{" "}
+  <span style={{ color: "#334155" }}>{stopId}</span>
+</div>
+
+<div style={{ fontSize: 12, color: "#6b7280" }}>
+  <strong>Time:</strong> {timeRaw}
+</div>
+
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    <strong>Time:</strong> {timeStr}
+                    <strong>Time:</strong> {timeRaw}
                   </div>
                   {!showMarkerIndicator && (
                     <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4, fontStyle: "italic" }}>
@@ -393,6 +417,7 @@ export default function ShipmentTrackingMap({
               center={points.length ? { lat: points[0].lat, lng: points[0].lng } : { lat: 20, lng: 0 }}
               zoom={3}
               options={{
+                mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID,
                 mapTypeId: "roadmap",
                 streetViewControl: false,
                 fullscreenControl: false,

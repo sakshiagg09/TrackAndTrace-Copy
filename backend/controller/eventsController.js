@@ -6,7 +6,9 @@ export const receiveEvent = async (req, res) => {
     const {
       FoId,
       Action_Name,
-      StopId
+      StopId,
+      EventLog,
+      EventLat
     } = req.body;
 
     // 🔒 Basic validation
@@ -21,18 +23,24 @@ export const receiveEvent = async (req, res) => {
     await pool.request()
       .input("FoId", sql.NVarChar, FoId)
       .input("Action_Name", sql.NVarChar, Action_Name)
-      .input("StopId", sql.NVarChar, StopId)
+      .input("StopId", sql.NVarChar, StopId) 
+      .input("EventLog", sql.NVarChar, EventLog)
+      .input("EventLat", sql.NVarChar, EventLat)
 
       .query(`
         INSERT INTO Events (
           FoId,
           Action_Name,
-          StopId
+          StopId,
+          EventLog,
+          EventLat
         )
         VALUES (
           @FoId,
           @Action_Name,
-          @StopId
+          @StopId,
+          @EventLog,
+          @EventLat
         )
       `);
 

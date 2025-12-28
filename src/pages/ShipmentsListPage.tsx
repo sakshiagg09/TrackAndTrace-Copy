@@ -74,16 +74,29 @@ const ShipmentsListPage: React.FC = () => {
           throw new Error(`Shipment API error ${dataRes.status}`);
         }
 
-        const dbRows = await dataRes.json();
+       interface ShipmentRow {
+  ShipmentNo?: string | null;
+  ContainerNumber?: string | null;
+  [key: string]: unknown;
+}
 
-        const mapped: GraphItem[] = (dbRows ?? []).map(
-          (row: Record<string, unknown>, idx: number) => ({
-            id: String(row.Id ?? row.ShipmentId ?? idx),
-            fields: row
-          })
-        );
+const dbRows: ShipmentRow[] = await dataRes.json();
 
-        setRows(mapped);
+const mapped: GraphItem[] = dbRows
+  .filter((row): row is ShipmentRow =>
+    Boolean(row.ShipmentNo || row.ContainerNumber)
+  )
+  .map((row) => {
+    const businessKey = row.ShipmentNo ?? row.ContainerNumber!;
+
+    return {
+      id: String(businessKey),
+      fields: row
+    };
+  });
+
+setRows(mapped);
+
       } catch (e: unknown) {
         console.error("Shipment load error", e);
         setError(e instanceof Error ? e.message : String(e));

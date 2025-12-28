@@ -21,6 +21,7 @@ app.use("/api", shipmentEventsRoutes);
 app.use("/api", trackingDataRoutes);
 app.use("/api", uiFieldConfigRoutes);
 app.use("/api", eventsRoutes);
+app.use("/api", Events);
 
 /* -------------------- HEALTH CHECK -------------------- */
 app.get("/api/health", (_req, res) => {
