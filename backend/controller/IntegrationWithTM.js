@@ -138,3 +138,93 @@ export async function postEvent(req, res) {
     });
   }
 }
+/* ------------------ TM POST POD ------------------ */
+export async function postPODToTM(payload) {
+  const { token, cookie } = await fetchCsrf();
+
+  const tmPayload = {
+    FoId: String(payload?.FoId ?? "").trim(),
+    StopId: String(payload?.StopId ?? "").trim(),
+    Discrepency: String(payload?.Discrepency ?? "").trim(),
+    Items: String(payload?.Items ?? "").trim(),
+  };
+
+  if (!tmPayload.FoId || !tmPayload.StopId) {
+    throw new Error("FoId and StopId required for POD");
+  }
+
+  const url =
+    `${SAP_BASE}/ProofOfDeliverySet` +
+    (SAP_CLIENT ? `?sap-client=${encodeURIComponent(SAP_CLIENT)}` : "");
+
+  const result = await axios({
+    method: "POST",
+    url,
+    data: JSON.stringify(tmPayload),
+    headers: {
+      Authorization: `Basic ${process.env.SAP_BASIC}`,
+      "x-csrf-token": token,
+      Cookie: cookie,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+      "DataServiceVersion": "2.0",
+      "MaxDataServiceVersion": "2.0",
+      ...(SAP_CLIENT ? { "sap-client": String(SAP_CLIENT) } : {}),
+    },
+    validateStatus: () => true,
+  });
+
+  if (result.status >= 400) {
+    throw new Error(`TM POD POST failed (${result.status})`);
+  }
+
+  return unwrapODataV2Entity(result.data);
+}
+
+/* ------------------ TM POST DELAY ------------------ */
+export async function postDelayToTM(payload) {
+  const { token, cookie } = await fetchCsrf();
+
+  const tmPayload = {
+    FoId: String(payload?.FoId ?? "").trim(),
+    StopId: String(payload?.StopId ?? "").trim(),
+    ETA: String(payload?.ETA ?? "").trim(),
+    Event: String(payload?.Event ?? "").trim(),
+    EventCode: String(payload?.EventCode ?? "").trim(),
+    EvtReasonCode: String(payload?.EvtReasonCode ?? "").trim(),
+    Description: String(payload?.Description ?? "").trim(),
+  };
+
+  if (!tmPayload.FoId || !tmPayload.StopId) {
+    throw new Error("FoId and StopId required for Delay");
+  }
+
+  const url =
+    `${SAP_BASE}/DelaySet` +
+    (SAP_CLIENT ? `?sap-client=${encodeURIComponent(SAP_CLIENT)}` : "");
+
+  const result = await axios({
+    method: "POST",
+    url,
+    data: JSON.stringify(tmPayload),
+    headers: {
+      Authorization: `Basic ${process.env.SAP_BASIC}`,
+      "x-csrf-token": token,
+      Cookie: cookie,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+      "DataServiceVersion": "2.0",
+      "MaxDataServiceVersion": "2.0",
+      ...(SAP_CLIENT ? { "sap-client": String(SAP_CLIENT) } : {}),
+    },
+    validateStatus: () => true,
+  });
+
+  if (result.status >= 400) {
+    throw new Error(`TM Delay POST failed (${result.status})`);
+  }
+
+  return unwrapODataV2Entity(result.data);
+}

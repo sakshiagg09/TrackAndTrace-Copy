@@ -10,6 +10,10 @@ import uiFieldConfigRoutes from "./routes/uiFieldsconfig.js";
 import eventsRoutes from "./routes/eventsRoutes.js";
 import Events from "./routes/Events.js";
 
+// 🔹 NEW: POD & Delay routes
+import podRoutes from "./routes/podRoutes.js";
+import delayRoutes from "./routes/delayRoutes.js";
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -22,7 +26,9 @@ app.use("/api", trackingDataRoutes);
 app.use("/api", uiFieldConfigRoutes);
 app.use("/api", eventsRoutes);
 app.use("/api", Events);
-
+// 🔹 NEW ROUTES REGISTERED
+app.use("/api", podRoutes);
+app.use("/api", delayRoutes);
 /* -------------------- HEALTH CHECK -------------------- */
 app.get("/api/health", (_req, res) => {
   res.json({ status: "Backend is running 🚀" });
