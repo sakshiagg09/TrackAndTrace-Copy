@@ -12,7 +12,6 @@ router.get("/shipment-events", async (req, res) => {
     const result = await pool.request().query(`
       SELECT *
       FROM dbo.ShipmentEvents
-      ORDER BY ActualTime DESC
     `);
 
     res.json(result.recordset);
