@@ -5,28 +5,27 @@ import { getPool } from "../config/db.js";
 const router = express.Router();
 
 /**
- * GET /api/events?key=XXXX
- * key = ShipmentNo OR ContainerNumber
- * Events.FoId stores exactly this value
+ * GET /api/events?foId=XXXX
+ * Fetch all events for a Freight Order
  */
 router.get("/events", async (req, res) => {
-  const { key } = req.query;
+  const { foId } = req.query;
 
-  if (!key) {
-    return res.status(400).json({ error: "Missing key" });
+  if (!foId) {
+    return res.status(400).json({ error: "Missing foId" });
   }
 
   try {
     const pool = await getPool();
 
-    // ✅ DIRECT MATCH ON FoId
     const result = await pool
       .request()
-      .input("key", sql.NVarChar, key)
+      .input("FoId", sql.NVarChar, foId)
       .query(`
         SELECT *
         FROM dbo.Events
-        WHERE FoId = @key
+        WHERE FoId = @FoId
+        ORDER BY EventTime
       `);
 
     res.json(result.recordset);

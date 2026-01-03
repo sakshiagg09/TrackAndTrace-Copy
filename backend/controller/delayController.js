@@ -79,6 +79,20 @@ export async function receiveDelay(req, res) {
     } catch (dbErr) {
       console.warn("Delay DB insert failed (continuing):", dbErr.message);
     }
+ //  Store in SKY+ DB in trackingData table
+    try {
+      const pool = await getPool();
+      await pool.request()
+        .input("FoId", sql.NVarChar, FoId)
+        .input("Event", sql.NVarChar, Event ?? "")
+        .query(`
+            UPDATE dbo.Trackingdata
+SET Event = @Event
+WHERE FoId = @FoId;
+        `);
+    } catch (dbErr) {
+      console.warn("Delay DB insert failed (continuing):", dbErr.message);
+    }
 
     // 2️⃣ Forward to TM (TM still gets ORIGINAL ETA string)
     const tmResponse = await postDelayToTM({

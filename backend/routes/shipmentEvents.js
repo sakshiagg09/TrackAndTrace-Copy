@@ -8,16 +8,23 @@ const router = express.Router();
  */
 router.get("/shipment-events", async (req, res) => {
   try {
-    const pool = getPool();
-    const result = await pool.request().query(`
-      SELECT *
-      FROM dbo.ShipmentEvents
-    `);
+    const pool = await getPool();
 
-    res.json(result.recordset);
+    const query = `
+      SELECT *
+      FROM dbo.Trackingdata 
+    `;
+
+    const result = await pool.request().query(query);
+
+    res.status(200).json(result.recordset);
+
   } catch (err) {
-    console.error("ShipmentEvents error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ shipment-events SQL error:", err); // IMPORTANT
+    res.status(500).json({
+      error: "Shipment-events failed",
+      details: err.message
+    });
   }
 });
 

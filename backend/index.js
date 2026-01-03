@@ -2,6 +2,11 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { connectDB } from "./config/db.js";
+import tmSyncRoutes from "./routes/tmSync.routes.js";
+import "./jobs/tmSync.job.js";
+import trackingRoutes from "./routes/trackingdata.js";
+
+
 
 // 🔹 Import route files (one per table)
 import shipmentEventsRoutes from "./routes/shipmentEvents.js";
@@ -29,6 +34,8 @@ app.use("/api", Events);
 // 🔹 NEW ROUTES REGISTERED
 app.use("/api", podRoutes);
 app.use("/api", delayRoutes);
+app.use("/api", tmSyncRoutes);
+app.use("/api", trackingRoutes);
 /* -------------------- HEALTH CHECK -------------------- */
 app.get("/api/health", (_req, res) => {
   res.json({ status: "Backend is running 🚀" });

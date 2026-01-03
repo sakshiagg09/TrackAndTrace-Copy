@@ -63,19 +63,22 @@ async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
 /**
  * businessKey = ShipmentNo OR ContainerNumber
  */
-async function fetchTrackingData(businessKey: string): Promise<ShipmentData | null> {
-  const data = await apiGet<ShipmentData[]>(
-    `/api/tracking-data?key=${encodeURIComponent(businessKey)}`
-  );
-  return data?.[0] ?? null;
-}
+
 
 /**
  * businessKey = ShipmentNo OR ContainerNumber
  */
-async function fetchEvents(businessKey: string): Promise<ShipmentEvent[]> {
+/**
+ * Fetch TrackingData + Latest Event (single object)
+ */
+async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
+  return apiGet<ShipmentData>(
+    `/api/tracking-header/${encodeURIComponent(foId)}`
+  );
+}
+async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
   return apiGet<ShipmentEvent[]>(
-    `/api/events?key=${encodeURIComponent(businessKey)}`
+    `/api/events?foId=${encodeURIComponent(foId)}`
   );
 }
 
@@ -126,10 +129,10 @@ export default function ShipmentDetailsPage() {
       try {
         setLoading(true);
 
-        const businessKey = id;
+        
         const [shipmentData, eventData] = await Promise.all([
-          fetchTrackingData(businessKey),
-          fetchEvents(businessKey)
+          fetchTrackingData(id),
+          fetchEvents(id)
         ]);
 
         if (!shipmentData) {
@@ -188,12 +191,8 @@ export default function ShipmentDetailsPage() {
   );
 
   /* ---------------- SAFE TITLE VALUE ---------------- */
-  const titleValue = String(
-    shipment?.ContainerNumber ??
-    shipment?.containerNumber ??
-    id ??
-    ""
-  );
+const titleValue = String(shipment?.FoId ?? id ?? "");
+
 
   /* ---------------- STATUS CHIP ---------------- */
   function renderStatusChip(statusValue: unknown) {
@@ -231,7 +230,7 @@ export default function ShipmentDetailsPage() {
                 <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>
                   {titleValue}
                 </Typography>
-                {renderStatusChip(shipment.TrackingStatus)}
+                {renderStatusChip(shipment.status)}
               </div>
 
               <Button

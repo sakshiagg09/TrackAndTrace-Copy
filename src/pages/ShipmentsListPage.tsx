@@ -74,26 +74,20 @@ const ShipmentsListPage: React.FC = () => {
           throw new Error(`Shipment API error ${dataRes.status}`);
         }
 
-       interface ShipmentRow {
-  ShipmentNo?: string | null;
-  ContainerNumber?: string | null;
+interface ShipmentRow {
+  FoId?: string | null;
   [key: string]: unknown;
 }
+
 
 const dbRows: ShipmentRow[] = await dataRes.json();
 
 const mapped: GraphItem[] = dbRows
-  .filter((row): row is ShipmentRow =>
-    Boolean(row.ShipmentNo || row.ContainerNumber)
-  )
-  .map((row) => {
-    const businessKey = row.ShipmentNo ?? row.ContainerNumber!;
-
-    return {
-      id: String(businessKey),
-      fields: row
-    };
-  });
+  .filter((row): row is ShipmentRow => Boolean(row.FoId))
+  .map((row) => ({
+    id: String(row.FoId),
+    fields: row
+  }));
 
 setRows(mapped);
 
