@@ -87,13 +87,13 @@ async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
    STATIC EVENT TABLE CONFIG
 ========================================================= */
 
-const EVENT_FIELD_DEFS = [
+/*const EVENT_FIELD_DEFS = [
   { title: "Freight Order ID", technicalName: "FoId", visibleInAdapt: true },
   { title: "Stop ID", technicalName: "StopId", visibleInAdapt: true },
   { title: "Action Name", technicalName: "Action_Name", visibleInAdapt: true },
   { title: "Longitude", technicalName: "EventLong", visibleInAdapt: true },
   { title: "Latitude", technicalName: "EventLat", visibleInAdapt: true }
-];
+];*/
 
 /* =========================================================
    MAIN COMPONENT
