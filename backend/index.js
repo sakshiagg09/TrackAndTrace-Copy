@@ -10,6 +10,7 @@ import skyRoutes from "./routes/sky.routes.js";
 // 🔹 Import route files (one per table)
 import shipmentEventsRoutes from "./routes/shipmentEvents.js";
 import trackingDataRoutes from "./routes/trackingdata.js";
+import trackingHeaderRoutes from "./routes/ShipmentEventsHeader.js";
 import uiFieldConfigRoutes from "./routes/ui-fields-config.js";
 //import eventsRoutes from "./routes/eventsRoutes.js";
 import Events from "./routes/Events.js";
@@ -32,21 +33,20 @@ app.use(cors({
 }));
 
 // IMPORTANT: handle preflight
-app.options("*", cors());
+
 app.use(express.json());
 
 /* -------------------- API ROUTES -------------------- */
-
 app.use("/api/shipment-events", shipmentEventsRoutes);
+app.use("/api/tracking-header", trackingHeaderRoutes);
 
-app.use("/api", trackingDataRoutes);
-app.use("/api/ui-fields-config", uiFieldConfigRoutes);
-app.use("/api", Events);
+app.use("/api/", trackingDataRoutes);
+app.use("/api/", uiFieldConfigRoutes);
+app.use("/api/", Events);
 // 🔹 NEW ROUTES REGISTERED
-app.use("/api", tmSyncRoutes);
+app.use("/api/", tmSyncRoutes);
 //app.use("/api", tmSyncRoutes);
 app.use("/api", trackingRoutes);
-
 app.use("/api", skyRoutes);
 /* -------------------- HEALTH CHECK -------------------- */
 app.get("/api/health", (_req, res) => {

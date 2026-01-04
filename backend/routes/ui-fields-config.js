@@ -7,7 +7,7 @@ const router = express.Router();
  * GET /api/ui-fields-config
  * Maps dbo.UIFieldConfig → frontend SimpleFieldDef
  */
-router.get("/ui-fields-config", async (_req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const result = await sql.query(`
       SELECT
