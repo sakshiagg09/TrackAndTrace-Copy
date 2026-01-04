@@ -10,7 +10,7 @@ import skyRoutes from "./routes/sky.routes.js";
 // 🔹 Import route files (one per table)
 import shipmentEventsRoutes from "./routes/shipmentEvents.js";
 import trackingDataRoutes from "./routes/trackingdata.js";
-import uiFieldConfigRoutes from "./routes/uiFieldsconfig.js";
+import uiFieldConfigRoutes from "./routes/ui-fields-config.js";
 //import eventsRoutes from "./routes/eventsRoutes.js";
 import Events from "./routes/Events.js";
 import tmSyncRoutes from "./routes/tmSync.routes.js";

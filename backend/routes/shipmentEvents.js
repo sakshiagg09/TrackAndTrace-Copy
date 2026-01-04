@@ -5,9 +5,9 @@ import { getPool } from "../config/db.js";
 const router = express.Router();
 
 /**
- * GET /api/shipment-events
+ * GET /api/shipmentEvents
  */
-router.get("/shipment-events", async (req, res) => {
+router.get("/shipmentEvents", async (req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(`
