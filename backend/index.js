@@ -22,7 +22,18 @@ const router = express.Router();
 // routes here
 export default router;
 
-app.use(cors());
+import cors from "cors";
+
+app.use(cors({
+  origin: [
+    "https://gentle-glacier-0aa062d03.4.azurestaticapps.net"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// IMPORTANT: handle preflight
+app.options("*", cors());
 app.use(express.json());
 
 /* -------------------- API ROUTES -------------------- */
