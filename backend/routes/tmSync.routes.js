@@ -1,5 +1,5 @@
 import express from "express";
-import { runTMSync } from "../controller/tmSync.controller.js";
+import { runTMSync } from "../controllers/tmSync.controller.js";
 
 const router = express.Router();
 

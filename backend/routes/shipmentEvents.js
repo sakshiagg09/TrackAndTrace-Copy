@@ -1,3 +1,4 @@
+// routes/shipmentEvents.js
 import express from "express";
 import { getPool } from "../config/db.js";
 
@@ -9,22 +10,31 @@ const router = express.Router();
 router.get("/shipment-events", async (req, res) => {
   try {
     const pool = await getPool();
-
-    const query = `
-      SELECT *
-      FROM dbo.Trackingdata 
-    `;
-
-    const result = await pool.request().query(query);
-
-    res.status(200).json(result.recordset);
-
+    const result = await pool.request().query(`
+      SELECT * FROM dbo.FreightOrderDetails
+    `);
+    res.json(result.recordset);
   } catch (err) {
-    console.error("❌ shipment-events SQL error:", err); // IMPORTANT
-    res.status(500).json({
-      error: "Shipment-events failed",
-      details: err.message
-    });
+    res.status(500).json({ error: err.message });
+  }
+});
+// routes/tracking.routes.js
+router.get("/tracking-data/:foId", async (req, res) => {
+  const { foId } = req.params;
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input("FoId", foId)
+      .query(`
+        SELECT *
+        FROM dbo.FreightOrderDetails
+        WHERE FoId = @FoId
+      `);
+
+    res.json(result.recordset[0] ?? null);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch tracking header" });
   }
 });
 

@@ -2,25 +2,25 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { connectDB } from "./config/db.js";
-import tmSyncRoutes from "./routes/tmSync.routes.js";
+//import tmSyncRoutes from "./routes/tmSync.routes.js";
 import "./jobs/tmSync.job.js";
 import trackingRoutes from "./routes/trackingdata.js";
-
-
+import skyRoutes from "./routes/sky.routes.js";
 
 // 🔹 Import route files (one per table)
 import shipmentEventsRoutes from "./routes/shipmentEvents.js";
 import trackingDataRoutes from "./routes/trackingdata.js";
 import uiFieldConfigRoutes from "./routes/uiFieldsconfig.js";
-import eventsRoutes from "./routes/eventsRoutes.js";
+//import eventsRoutes from "./routes/eventsRoutes.js";
 import Events from "./routes/Events.js";
+import tmSyncRoutes from "./routes/tmSync.routes.js";
 
-// 🔹 NEW: POD & Delay routes
-import podRoutes from "./routes/podRoutes.js";
-import delayRoutes from "./routes/delayRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const router = express.Router();
+// routes here
+export default router;
 
 app.use(cors());
 app.use(express.json());
@@ -29,13 +29,13 @@ app.use(express.json());
 app.use("/api", shipmentEventsRoutes);
 app.use("/api", trackingDataRoutes);
 app.use("/api", uiFieldConfigRoutes);
-app.use("/api", eventsRoutes);
 app.use("/api", Events);
 // 🔹 NEW ROUTES REGISTERED
-app.use("/api", podRoutes);
-app.use("/api", delayRoutes);
 app.use("/api", tmSyncRoutes);
+//app.use("/api", tmSyncRoutes);
 app.use("/api", trackingRoutes);
+
+app.use("/api", skyRoutes);
 /* -------------------- HEALTH CHECK -------------------- */
 app.get("/api/health", (_req, res) => {
   res.json({ status: "Backend is running 🚀" });

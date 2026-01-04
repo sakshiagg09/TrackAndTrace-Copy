@@ -73,9 +73,10 @@ async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
  */
 async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
   return apiGet<ShipmentData>(
-    `/api/tracking-header/${encodeURIComponent(foId)}`
+    `/api/tracking-data/${encodeURIComponent(foId)}`
   );
 }
+
 async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
   return apiGet<ShipmentEvent[]>(
     `/api/events?foId=${encodeURIComponent(foId)}`
@@ -109,6 +110,18 @@ export default function ShipmentDetailsPage() {
   const [events, setEvents] = useState<ShipmentEvent[]>([]);
 
   const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
+   /* ✅ PUT useMemo HERE */
+  const eventVisibleFields = useMemo(() => {
+    if (!events.length) return [];
+
+    const sampleEvent = events[0];
+
+    return uiFields.filter(
+      f =>
+        visibleKeys.includes(f.technicalName) &&
+        sampleEvent[f.technicalName] !== undefined
+    );
+  }, [uiFields, visibleKeys, events]);
   const [adaptOpen, setAdaptOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -230,7 +243,8 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
                 <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>
                   {titleValue}
                 </Typography>
-                {renderStatusChip(shipment.status)}
+                {renderStatusChip(shipment.Status)}
+
               </div>
 
               <Button
@@ -286,11 +300,12 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
           </Paper>
         )}
 
-        <EventsTable
-          rows={events.map(e => ({ id: e.id, fields: e }))}
-          fieldDefs={EVENT_FIELD_DEFS}
-          storageKey={String(id)}
-        />
+<EventsTable
+  rows={events.map(e => ({ id: e.id, fields: e }))}
+  fieldDefs={eventVisibleFields}
+  storageKey={`events:${id}`}
+/>
+
 
         {/* ================= ADAPT COLUMNS DIALOG ================= */}
         <Dialog open={adaptOpen} onClose={() => setAdaptOpen(false)} maxWidth="md" fullWidth>
