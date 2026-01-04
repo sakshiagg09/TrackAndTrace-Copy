@@ -8,7 +8,7 @@ const router = express.Router();
  * GET /api/shipment-events
  * Returns all shipment rows
  */
-router.get("/", async (req, res) => {
+router.get("/shipments-events", async (req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(`

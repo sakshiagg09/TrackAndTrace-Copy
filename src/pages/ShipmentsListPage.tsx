@@ -47,7 +47,7 @@ const ShipmentsListPage: React.FC = () => {
       /* ---------- 1. LOAD UI FIELD CONFIG ---------- */
       try {
         const cfgRes = await 
-          fetch(`${API_BASE}/api/ui-fields-config`
+          fetch(`${API_BASE}/api/uiFieldConfigRoutes`
         );
 
         if (!cfgRes.ok) {
@@ -66,7 +66,7 @@ const ShipmentsListPage: React.FC = () => {
 
       /* ---------- 2. LOAD SHIPMENT DATA ---------- */
       try {
-        const dataRes = await fetch(`${API_BASE}/api/shipment-events`);
+        const dataRes = await fetch(`${API_BASE}/api/shipmentEventsRoutes`);
 
         if (!dataRes.ok) {
           throw new Error(`Shipment API error ${dataRes.status}`);

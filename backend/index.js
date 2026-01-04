@@ -37,8 +37,8 @@ app.use(cors({
 app.use(express.json());
 
 /* -------------------- API ROUTES -------------------- */
-app.use("/api/shipment-events", shipmentEventsRoutes);
-app.use("/api/tracking-header", trackingHeaderRoutes);
+app.use("/api/", shipmentEventsRoutes);
+app.use("/api/", trackingHeaderRoutes);
 
 app.use("/api/", trackingDataRoutes);
 app.use("/api/", uiFieldConfigRoutes);
