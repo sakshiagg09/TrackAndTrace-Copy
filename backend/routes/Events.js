@@ -4,7 +4,7 @@ import { getPool } from "../config/db.js";
 
 const router = express.Router();
 
-router.get("/events", async (req, res) => {
+router.get("/", async (req, res) => {
   const { foId } = req.query;
 
   if (!foId) {

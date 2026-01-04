@@ -7,7 +7,7 @@ import { getPool } from "../config/db.js";
 /**
  * GET /api/shipmentEvents
  */
-router.get("/shipment-events", async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(`

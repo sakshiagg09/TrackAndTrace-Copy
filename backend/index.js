@@ -26,9 +26,11 @@ app.use(cors());
 app.use(express.json());
 
 /* -------------------- API ROUTES -------------------- */
-app.use("/api", shipmentEventsRoutes);
+
+app.use("/api/shipment-events", shipmentEventsRoutes);
+
 app.use("/api", trackingDataRoutes);
-app.use("/api", uiFieldConfigRoutes);
+app.use("/api/ui-fields-config", uiFieldConfigRoutes);
 app.use("/api", Events);
 // 🔹 NEW ROUTES REGISTERED
 app.use("/api", tmSyncRoutes);
