@@ -23,7 +23,7 @@ interface UIFieldConfig {
 }
 
 /* ---------------- COMPONENT ---------------- */
-
+const API_BASE = import.meta.env.VITE_API_BASE;
 const ShipmentsListPage: React.FC = () => {
   const [rows, setRows] = useState<GraphItem[]>([]);
   const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
@@ -46,8 +46,8 @@ const ShipmentsListPage: React.FC = () => {
 
       /* ---------- 1. LOAD UI FIELD CONFIG ---------- */
       try {
-        const cfgRes = await fetch(
-          "http://localhost:5000/api/ui-fields-config"
+        const cfgRes = await 
+          fetch(`${API_BASE}/api/ui-fields-config`
         );
 
         if (!cfgRes.ok) {
@@ -66,9 +66,7 @@ const ShipmentsListPage: React.FC = () => {
 
       /* ---------- 2. LOAD SHIPMENT DATA ---------- */
       try {
-        const dataRes = await fetch(
-          "http://localhost:5000/api/shipment-events"
-        );
+        const dataRes = await fetch(`${API_BASE}/api/shipment-events`);
 
         if (!dataRes.ok) {
           throw new Error(`Shipment API error ${dataRes.status}`);
