@@ -17,12 +17,11 @@ import tmSyncRoutes from "./routes/tmSync.routes.js";
 
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const router = express.Router();
+const PORT = process.env.PORT || 8080;
+//const router = express.Router();
 // routes here
-export default router;
+//export default router;
 
-import cors from "cors";
 
 app.use(cors({
   origin: [
