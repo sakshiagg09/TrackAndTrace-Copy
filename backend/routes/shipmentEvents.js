@@ -2,12 +2,12 @@
 import express from "express";
 import { getPool } from "../config/db.js";
 
-const router = express.Router();
+//const router = express.Router();
 
 /**
  * GET /api/shipmentEvents
  */
-router.get("/shipmentEvents", async (req, res) => {
+router.get("/shipment-events", async (req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(`
@@ -38,4 +38,4 @@ router.get("/tracking-data/:foId", async (req, res) => {
   }
 });
 
-export default router;
+//export default router;
