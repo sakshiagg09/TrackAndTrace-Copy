@@ -32,7 +32,6 @@ const basename = detectBaseName();
 
 const App: React.FC = () => {
   // eslint-disable-next-line no-console
-  const path = window.location.pathname || "/api"; 
   console.log("App rendering — router basename:", basename, "location:", window.location.pathname);
 
   return (
