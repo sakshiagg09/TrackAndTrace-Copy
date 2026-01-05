@@ -24,6 +24,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import PageWrapper from "../components/layout/PageWrapper";
 import ShipmentTrackingMap from "../components/ShipmentTrackingMap";
 import EventsTable from "../components/EventsTable";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 /* =========================================================
    TYPES

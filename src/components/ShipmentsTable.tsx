@@ -25,6 +25,7 @@ import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import TuneIcon from "@mui/icons-material/Tune";
 import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate } from "react-router-dom";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 /* -------------------------------------------------------------------------- */
 /*                             TYPE DEFINITIONS                               */
