@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./App.css";
 import ShipmentDetailsPage from "./pages/ShipmentDetailsPage";
 import ShipmentsList from "../src/pages/ShipmentsListPage";
-const API_BASE = import.meta.env.VITE_API_BASE;
+
 
 function detectBaseName(): string {
   const p = window.location.pathname || "/";
@@ -13,7 +13,8 @@ function detectBaseName(): string {
   const idx = p.indexOf(indexToken);
   if (idx !== -1) {
     // return the full prefix (including index.html)
-    return p.slice(0, idx + indexToken.length) || API_BASE || "/";
+
+    return p.slice(0, idx + indexToken.length) || "/";
   }
 
   // Otherwise: if last segment looks like a filename (has .) strip it off and use directory
