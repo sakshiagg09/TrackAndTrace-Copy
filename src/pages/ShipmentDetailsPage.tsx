@@ -73,7 +73,7 @@ async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
  */
 async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
   return apiGet<ShipmentData>(
-    `/api/tracking-data/${encodeURIComponent(foId)}`
+    `/api/shipment-tracking-data/${encodeURIComponent(foId)}`
   );
 }
 
