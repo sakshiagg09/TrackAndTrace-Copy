@@ -13,26 +13,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # 2️⃣ Setup Node (only for tooling, not runtime)
+      # 2️⃣ Setup Node.js (for tooling only)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # 3️⃣ Zip backend ONLY (no node_modules)
-      - name: Zip backend app
+      # 3️⃣ Zip BACKEND CONTENTS as ROOT (CRITICAL STEP)
+      - name: Create backend root zip
         run: |
           cd backend
-          zip -r backend.zip . -x node_modules
+          zip -r ../backend-root.zip . -x node_modules
+          cd ..
 
-      # 4️⃣ Deploy backend zip
+      # 4️⃣ Deploy ZIP to Azure App Service
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'SKY-PLUS-Backend'
-          slot-name: 'Production'
+          app-name: SKY-PLUS-Backend
+          slot-name: Production
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F4200818A9584C628E5A72C42DD25D35 }}
-          package: backend/backend.zip
+          package: backend-root.zip
