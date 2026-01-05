@@ -37,7 +37,7 @@ const App: React.FC = () => {
     <Router basename={basename}>
       <Routes>
         <Route path="/" element={<ShipmentsList />} />
-        <Route path="/shipment/:id" element={<ShipmentDetailsPage />} />
+        <Route path="/shipment-tracking-data/:id" element={<ShipmentDetailsPage />} />
       </Routes>
     </Router>
   );

@@ -383,7 +383,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ fieldDefs, onFilter }) => {
           // small timeout so user sees the upload success briefly
           setTimeout(() => {
             onClose();
-            navigate(`/shipment/${encoded}`);
+            navigate(`/shipment-tracking-data/${encoded}`);
           }, 350);
         } else {
           // no id found — just close after brief confirmation
