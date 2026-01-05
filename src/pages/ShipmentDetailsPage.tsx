@@ -71,14 +71,15 @@ async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
 /**
  * Fetch TrackingData + Latest Event (single object)
  */
+
 async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
-  return apiGet<ShipmentData>(
+  return apiGet(
     `/api/shipment-tracking-data?foId=${encodeURIComponent(foId)}`
   );
 }
 
 async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
-  return apiGet<ShipmentEvent[]>(
+  return apiGet(
     `/api/events?foId=${encodeURIComponent(foId)}`
   );
 }
