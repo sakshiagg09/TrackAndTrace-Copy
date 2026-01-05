@@ -49,11 +49,9 @@ interface ShipmentEvent {
    API HELPERS
 ========================================================= */
 
-async function apiGet<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API failed: ${url}`);
-  }
+async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error(`API failed: ${res.status} ${path}`);
   return res.json();
 }
 
