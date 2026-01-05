@@ -24,7 +24,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import PageWrapper from "../components/layout/PageWrapper";
 import ShipmentTrackingMap from "../components/ShipmentTrackingMap";
 import EventsTable from "../components/EventsTable";
-
+const API_BASE = import.meta.env.VITE_API_BASE;
 /* =========================================================
    TYPES
 ========================================================= */
@@ -48,7 +48,7 @@ interface ShipmentEvent {
    API HELPERS
 ========================================================= */
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) throw new Error(`API failed: ${res.status} ${path}`);
@@ -69,6 +69,7 @@ async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
 /**
  * Fetch TrackingData + Latest Event (single object)
  */
+
 async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
   return apiGet(
     `/api/shipment-tracking-data?foId=${encodeURIComponent(foId)}`
@@ -80,7 +81,6 @@ async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
     `/api/events?foId=${encodeURIComponent(foId)}`
   );
 }
-
 
 /* =========================================================
    STATIC EVENT TABLE CONFIG
