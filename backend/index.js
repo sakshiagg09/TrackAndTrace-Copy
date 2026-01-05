@@ -25,12 +25,25 @@ const PORT = process.env.PORT || 8080;
 
 
 app.use(cors({
-  origin: [
-    "https://gentle-glacier-0aa062d03.4.azurestaticapps.net"
-  ],
+  origin: (origin, callback) => {
+    const allowed = [
+      "https://gentle-glacier-0aa062d03.4.azurestaticapps.net"
+    ];
+
+    // Allow Azure internal & server-side calls
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
+
+// VERY IMPORTANT
+app.options("*", cors());
 
 // IMPORTANT: handle preflight
 

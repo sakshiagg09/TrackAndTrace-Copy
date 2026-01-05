@@ -67,7 +67,7 @@ const ShipmentsListPage: React.FC = () => {
 
       /* ---------- 2. LOAD SHIPMENT DATA ---------- */
       try {
-        const dataRes = await fetch(`${API_BASE}/api/shipmentEvents`);
+        const dataRes = await fetch(`${API_BASE}/api/shipments-events`);
 
         if (!dataRes.ok) {
           throw new Error(`Shipment API error ${dataRes.status}`);
