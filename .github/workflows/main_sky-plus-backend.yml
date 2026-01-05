@@ -16,24 +16,19 @@ jobs:
       # 1️⃣ Checkout code
       - uses: actions/checkout@v4
 
-      # 2️⃣ Setup Node
+      # 2️⃣ Setup Node (only for tooling, not runtime)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # 3️⃣ Install backend dependencies
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm install
-
-      # 4️⃣ Zip backend ONLY
+      # 3️⃣ Zip backend ONLY (no node_modules)
       - name: Zip backend app
         run: |
           cd backend
           zip -r backend.zip . -x node_modules
 
-      # 5️⃣ Deploy backend zip
+      # 4️⃣ Deploy backend zip
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
