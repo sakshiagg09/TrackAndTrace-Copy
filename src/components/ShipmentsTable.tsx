@@ -380,7 +380,7 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({ rows, fieldDefs, storag
   }, [selectedId]);
   const onRowClick = (id: string) => {
     setSelectedId(id);
-    navigate(`/shipment/${id}`);
+    navigate(`/shipment-tracking-data/${id}`);
   };
 
   /* Adapt Columns dialog */
