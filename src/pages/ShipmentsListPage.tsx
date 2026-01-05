@@ -24,6 +24,7 @@ interface UIFieldConfig {
 
 /* ---------------- COMPONENT ---------------- */
 const API_BASE = import.meta.env.VITE_API_BASE;
+console.log("API_BASE:", API_BASE);
 const ShipmentsListPage: React.FC = () => {
   const [rows, setRows] = useState<GraphItem[]>([]);
   const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
