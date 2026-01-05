@@ -9,7 +9,7 @@ const router = express.Router();
  * Returns header info for one FoId
  */
 router.get("/shipment-tracking-data", async (req, res) => {
-  const { foId } = req.params;
+  const { foId } = req.query;
 
   try {
     const pool = await getPool();
