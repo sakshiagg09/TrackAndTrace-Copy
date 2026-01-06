@@ -143,24 +143,39 @@ function getSqlValue(
   if (exactKey) return fields[exactKey];
 
   // Partial fallback (legacy data safety)
+// ❌ prevent ID fields from fuzzy matching
+if (!lower.includes("id")) {
   const partialKey = Object.keys(fields).find(
     (k) => k.toLowerCase().includes(lower)
   );
   if (partialKey) return fields[partialKey];
-
-  return undefined;
 }
 
-function formatSqlValue(value: unknown): string {
+
+function formatSqlValue(
+  value: unknown,
+  technicalName?: string
+): string {
   if (value === null || value === undefined) return "—";
 
-  // Azure SQL datetime formatting
-  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
-    return new Date(value).toLocaleString();
+  // ✅ format ONLY real date fields
+  if (
+    typeof value === "string" &&
+    technicalName &&
+    ["eta", "timestamp", "eventdate", "createdon", "updatedon"].includes(
+      technicalName.toLowerCase()
+    )
+  ) {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString();
+    }
   }
 
+  // ✅ IDs remain IDs
   return String(value);
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*                                 Component                                   */
@@ -440,9 +455,10 @@ return (
       overflow: "hidden",
       textOverflow: "ellipsis",
     }}
-    title={formatSqlValue(value)}
+   title={formatSqlValue(value, f.technicalName)}
   >
-    {formatSqlValue(value)}
+   {formatSqlValue(value, f.technicalName)}
+
   </span>
 );
 
