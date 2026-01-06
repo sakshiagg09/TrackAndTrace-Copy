@@ -260,16 +260,15 @@ const ob = b.order ?? 9999;
 
   const [colWidths, setColWidths] = useState<number[]>(() => savedWidths ?? initialVisible.map(() => DEFAULT_COLUMN_WIDTH));
 
-  useEffect(() => {
-    // when visibleFields length changes reset widths if no saved widths
-setColWidths(
-  savedWidths
-    ? savedWidths
-    : initialVisible.map(() => DEFAULT_COLUMN_WIDTH)
-);
+useEffect(() => {
+  setColWidths((prev) => {
+    if (!prev || prev.length !== visibleKeys.length) {
+      return visibleKeys.map(() => DEFAULT_COLUMN_WIDTH);
+    }
+    return prev;
+  });
+}, [visibleKeys.length]);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialVisible.length]);
 
   // selected row persisted in sessionStorage
   const sessionSelectedKey = `events_selected:${storageKey || "default"}`;

@@ -110,17 +110,19 @@ export default function ShipmentDetailsPage() {
 
   const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
    /* ✅ PUT useMemo HERE */
-  const eventVisibleFields = useMemo(() => {
-    if (!events.length) return [];
+const eventFieldDefs = useMemo(() => {
+  if (!events.length) return [];
 
-    const sampleEvent = events[0];
+  const sample = events[0];
 
-    return uiFields.filter(
-      f =>
-        visibleKeys.includes(f.technicalName) &&
-        sampleEvent[f.technicalName] !== undefined
-    );
-  }, [uiFields, visibleKeys, events]);
+  return Object.keys(sample).map((key, index) => ({
+    title: key,
+    technicalName: key,
+    visibleInAdapt: true,
+    order: index
+  }));
+}, [events]);
+
   const [adaptOpen, setAdaptOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -301,9 +303,10 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
 
 <EventsTable
   rows={events.map(e => ({ id: e.id, fields: e }))}
-  fieldDefs={eventVisibleFields}
+  fieldDefs={eventFieldDefs}
   storageKey={`events:${id}`}
 />
+
 
 
         {/* ================= ADAPT COLUMNS DIALOG ================= */}
