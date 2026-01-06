@@ -151,6 +151,7 @@ if (!lower.includes("id")) {
   if (partialKey) return fields[partialKey];
 }
 
+}
 
 function formatSqlValue(
   value: unknown,
