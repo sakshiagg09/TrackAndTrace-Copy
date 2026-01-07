@@ -200,7 +200,7 @@ export default function ShipmentTrackingMap({
   const truckFallbackRef = useRef<google.maps.Marker | null>(null);
 
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [, setSelectedId] = useState<string | null>(null);
 
   // Live tracking state
   const [liveLatest, setLiveLatest] = useState<LivePoint | null>(null);
