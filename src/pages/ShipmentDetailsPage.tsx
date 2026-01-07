@@ -260,6 +260,7 @@ export default function ShipmentDetailsPage() {
           storageKey={`events:${id}`}
         />
 
+
         {/* ================= ADAPT COLUMNS DIALOG ================= */}
         <Dialog open={adaptOpen} onClose={() => setAdaptOpen(false)} maxWidth="md" fullWidth>
           <DialogTitle>Adapt Columns</DialogTitle>
