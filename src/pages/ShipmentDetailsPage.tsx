@@ -1,3 +1,4 @@
+// src/pages/ShipmentDetailsPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -14,7 +15,7 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
 } from "@mui/material";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -24,7 +25,9 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import PageWrapper from "../components/layout/PageWrapper";
 import ShipmentTrackingMap from "../components/ShipmentTrackingMap";
 import EventsTable from "../components/EventsTable";
+
 const API_BASE = import.meta.env.VITE_API_BASE;
+
 /* =========================================================
    TYPES
 ========================================================= */
@@ -48,51 +51,23 @@ interface ShipmentEvent {
    API HELPERS
 ========================================================= */
 
-
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) throw new Error(`API failed: ${res.status} ${path}`);
   return res.json();
 }
+
 async function fetchUIFieldConfig(): Promise<UIFieldConfig[]> {
   return apiGet("/api/ui-fields-config");
 }
 
-/**
- * businessKey = ShipmentNo OR ContainerNumber
- */
-
-
-/**
- * businessKey = ShipmentNo OR ContainerNumber
- */
-/**
- * Fetch TrackingData + Latest Event (single object)
- */
-
 async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
-  return apiGet(
-    `/api/shipment-tracking-data?foId=${encodeURIComponent(foId)}`
-  );
+  return apiGet(`/api/shipment-tracking-data?foId=${encodeURIComponent(foId)}`);
 }
 
 async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
-  return apiGet(
-    `/api/events?foId=${encodeURIComponent(foId)}`
-  );
+  return apiGet(`/api/events?foId=${encodeURIComponent(foId)}`);
 }
-
-/* =========================================================
-   STATIC EVENT TABLE CONFIG
-========================================================= */
-
-/*const EVENT_FIELD_DEFS = [
-  { title: "Freight Order ID", technicalName: "FoId", visibleInAdapt: true },
-  { title: "Stop ID", technicalName: "StopId", visibleInAdapt: true },
-  { title: "Action Name", technicalName: "Action_Name", visibleInAdapt: true },
-  { title: "Longitude", technicalName: "EventLong", visibleInAdapt: true },
-  { title: "Latitude", technicalName: "EventLat", visibleInAdapt: true }
-];*/
 
 /* =========================================================
    MAIN COMPONENT
@@ -109,19 +84,14 @@ export default function ShipmentDetailsPage() {
   const [events, setEvents] = useState<ShipmentEvent[]>([]);
 
   const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
-   /* ✅ PUT useMemo HERE */
-const eventFieldDefs = useMemo(() => {
-  if (!events.length) return [];
 
-  const sample = events[0];
-
-  return Object.keys(sample).map((key, index) => ({
-    title: key,
-    technicalName: key,
-    visibleInAdapt: true,
-    order: index
-  }));
-}, [events]);
+  const eventVisibleFields = useMemo(() => {
+    if (!events.length) return [];
+    const sampleEvent = events[0];
+    return uiFields.filter(
+      (f) => visibleKeys.includes(f.technicalName) && sampleEvent[f.technicalName] !== undefined
+    );
+  }, [uiFields, visibleKeys, events]);
 
   const [adaptOpen, setAdaptOpen] = useState(false);
 
@@ -143,11 +113,7 @@ const eventFieldDefs = useMemo(() => {
       try {
         setLoading(true);
 
-        
-        const [shipmentData, eventData] = await Promise.all([
-          fetchTrackingData(id),
-          fetchEvents(id)
-        ]);
+        const [shipmentData, eventData] = await Promise.all([fetchTrackingData(id), fetchEvents(id)]);
 
         if (!shipmentData) {
           setError("Shipment not found");
@@ -155,7 +121,7 @@ const eventFieldDefs = useMemo(() => {
         }
 
         setShipment(shipmentData);
-        setEvents(eventData);
+        setEvents(eventData || []);
       } catch {
         setError("Failed to load shipment details");
       } finally {
@@ -183,9 +149,7 @@ const eventFieldDefs = useMemo(() => {
       /* ignore */
     }
 
-    setVisibleKeys(
-      uiFields.filter(f => f.visibleInAdapt).map(f => f.technicalName)
-    );
+    setVisibleKeys(uiFields.filter((f) => f.visibleInAdapt).map((f) => f.technicalName));
   }, [uiFields, STORAGE_KEY]);
 
   /* ---------------- PERSIST FIELD SELECTION ---------------- */
@@ -200,13 +164,12 @@ const eventFieldDefs = useMemo(() => {
 
   /* ---------------- DERIVED UI FIELDS ---------------- */
   const visibleFields = useMemo(
-    () => uiFields.filter(f => visibleKeys.includes(f.technicalName)),
+    () => uiFields.filter((f) => visibleKeys.includes(f.technicalName)),
     [uiFields, visibleKeys]
   );
 
   /* ---------------- SAFE TITLE VALUE ---------------- */
-const titleValue = String(shipment?.FoId ?? id ?? "");
-
+  const titleValue = String(shipment?.FoId ?? id ?? "");
 
   /* ---------------- STATUS CHIP ---------------- */
   function renderStatusChip(statusValue: unknown) {
@@ -233,7 +196,6 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
   return (
     <PageWrapper>
       <div style={{ maxWidth: "82rem", margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
-
         {loading && <p>Loading shipment details…</p>}
         {error && <p style={{ color: "red" }}>{error}</p>}
 
@@ -241,18 +203,11 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
           <Paper elevation={2} style={{ padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>
-                  {titleValue}
-                </Typography>
-                {renderStatusChip(shipment.Status)}
-
+                <Typography style={{ fontWeight: 600, fontSize: 15, color: "#2563eb" }}>{titleValue}</Typography>
+                {renderStatusChip((shipment as any).Status)}
               </div>
 
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setAdaptOpen(true)}
-              >
+              <Button size="small" variant="outlined" onClick={() => setAdaptOpen(true)}>
                 Adapt Columns
               </Button>
             </div>
@@ -263,50 +218,47 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 12
+                gap: 12,
               }}
             >
-              {visibleFields.map(f => (
+              {visibleFields.map((f) => (
                 <div
                   key={f.technicalName}
                   style={{
                     border: "1px solid #e5e7eb",
                     padding: 8,
                     borderRadius: 6,
-                    background: "#f9fafb"
+                    background: "#f9fafb",
                   }}
                 >
-                  <div style={{ fontSize: 11, color: "#6b7280" }}>
-                    {f.title}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#111827" }}>
-                    {String(shipment[f.technicalName] ?? "—")}
-                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>{f.title}</div>
+                  <div style={{ fontSize: 13, color: "#111827" }}>{String((shipment as any)[f.technicalName] ?? "—")}</div>
                 </div>
               ))}
             </div>
           </Paper>
         )}
 
-        {events.length > 0 && (
+        {/* ✅ render map even if events are empty, so live tracking can still show */}
+        {(events.length > 0 || !!id) && (
           <Paper elevation={2} style={{ padding: 14 }}>
-            <Typography style={{ fontWeight: 600, marginBottom: 8 }}>
-              Tracking Map
-            </Typography>
+            <Typography style={{ fontWeight: 600, marginBottom: 8 }}>Tracking Map</Typography>
 
             <ShipmentTrackingMap
-              events={events.map(e => ({ id: e.id, fields: e }))}
+              foId={String(id)}                 // ✅ needed for /tracking/latest & /tracking/history
+              events={events.map((e) => ({ id: e.id, fields: e }))}
               height={520}
+              pollMs={3000}                     // ✅ move marker every 3s
+              historyLimit={300}                // ✅ polyline points from live history
             />
           </Paper>
         )}
 
-<EventsTable
-  rows={events.map(e => ({ id: e.id, fields: e }))}
-  fieldDefs={eventFieldDefs}
-  storageKey={`events:${id}`}
-/>
-
+        <EventsTable
+          rows={events.map((e) => ({ id: e.id, fields: e }))}
+          fieldDefs={eventVisibleFields as any}
+          storageKey={`events:${id}`}
+        />
 
 
         {/* ================= ADAPT COLUMNS DIALOG ================= */}
@@ -314,27 +266,22 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
           <DialogTitle>Adapt Columns</DialogTitle>
           <DialogContent dividers>
             <List dense>
-              {uiFields.map(f => {
+              {uiFields.map((f) => {
                 const checked = visibleKeys.includes(f.technicalName);
                 return (
                   <ListItem
                     key={f.technicalName}
                     button
                     onClick={() =>
-                      setVisibleKeys(prev =>
-                        prev.includes(f.technicalName)
-                          ? prev.filter(k => k !== f.technicalName)
-                          : [...prev, f.technicalName]
+                      setVisibleKeys((prev) =>
+                        prev.includes(f.technicalName) ? prev.filter((k) => k !== f.technicalName) : [...prev, f.technicalName]
                       )
                     }
                   >
                     <ListItemIcon>
                       <Checkbox checked={checked} />
                     </ListItemIcon>
-                    <ListItemText
-                      primary={f.title}
-                      secondary={f.technicalName}
-                    />
+                    <ListItemText primary={f.title} secondary={f.technicalName} />
                   </ListItem>
                 );
               })}
@@ -344,7 +291,6 @@ const titleValue = String(shipment?.FoId ?? id ?? "");
             <Button onClick={() => setAdaptOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
-
       </div>
     </PageWrapper>
   );
