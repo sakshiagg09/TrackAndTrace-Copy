@@ -1,4 +1,3 @@
-// src/components/ShipmentTrackingMap.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleMap, Polyline, useJsApiLoader } from "@react-google-maps/api";
 
@@ -11,7 +10,29 @@ interface ShipmentTrackingMapProps {
   events: RawEvent[];
   height?: number | string;
   onSelectEvent?: (ev: RawEvent) => void;
+
+  /** ✅ REQUIRED for live tracking */
+  foId: string;
+
+  /** polling interval for latest (ms) */
+  pollMs?: number;
+
+  /** how many history points to draw for live polyline */
+  historyLimit?: number;
 }
+
+type LivePoint = {
+  FoId: string;
+  DriverId?: string;
+  Latitude: number;
+  Longitude: number;
+  Accuracy?: number | null;
+  Timestamp: number;
+  Speed?: number | null; // km/h
+  Bearing?: number | null;
+};
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || "";
 
 const containerBaseStyle: React.CSSProperties = {
   width: "100%",
@@ -27,7 +48,13 @@ const pinColors = {
   start: "#23a455",
   mid: "#1f6feb",
   end: "#d64545",
+  truck: "#111827",
 };
+
+function toNum(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 /** Always convert unknown to a safe string so JSX never renders an object ({}) */
 function asText(v: unknown, fallback = ""): string {
@@ -66,7 +93,6 @@ function parseLatLng(fields: Record<string, any>) {
   return { lat, lng };
 }
 
-
 function escapeHtml(s: unknown) {
   if (s === null || s === undefined) return "";
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -76,21 +102,15 @@ function buildListItemHtml(fields: Record<string, unknown>) {
   const title = asText((fields as any)?.EventName ?? (fields as any)?.Code, "Event");
   const stopId = asText((fields as any)?.StopId ?? (fields as any)?.stopId, "—");
 
-  
-
   return `
     <div style="font-size:13px;max-width:260px">
       <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(title)}</div>
       <div style="font-size:12px;color:#374151;margin-bottom:4px;">
         <strong>Stop ID:</strong> ${escapeHtml(stopId)}
       </div>
-      <div style="font-size:12px;color:#6b7280;">
-  
-      </div>
     </div>
   `;
 }
-
 
 /** create small html pin (circle + optional label) */
 function makeMarkerContent(color: string, label?: string) {
@@ -103,33 +123,67 @@ function makeMarkerContent(color: string, label?: string) {
   return `
     <div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;">
       <div style="min-width:${minWidth};height:${height};border-radius:14px;background:${bg};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.25);padding:${padding};">
-        ${label ? `<div style="font-size:${isLongLabel ? "11px" : "12px"};color:white;font-weight:700;white-space:nowrap;">${escapeHtml(label)}</div>` : ""}
+        ${
+          label
+            ? `<div style="font-size:${isLongLabel ? "11px" : "12px"};color:white;font-weight:700;white-space:nowrap;">${escapeHtml(
+                label
+              )}</div>`
+            : ""
+        }
       </div>
       <div style="width:2px;height:10px;background:${bg};margin-top:2px;border-radius:1px;"></div>
     </div>
   `;
 }
 
+/** simple "truck" marker */
+function makeTruckMarkerHtml(speedKmh?: number | null) {
+  const sp = Number.isFinite(Number(speedKmh)) ? `${Math.round(Number(speedKmh))} km/h` : "";
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;">
+      <div style="width:34px;height:34px;border-radius:999px;background:${pinColors.truck};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25);">
+        <div style="font-size:18px;line-height:18px;color:white;">🚚</div>
+      </div>
+      ${
+        sp
+          ? `<div style="margin-top:4px;background:white;border:1px solid rgba(0,0,0,0.1);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;color:#111827;box-shadow:0 1px 4px rgba(0,0,0,0.08);">${escapeHtml(
+              sp
+            )}</div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+async function apiGetJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error(`API failed: ${res.status} ${path}`);
+  return res.json();
+}
+
 export default function ShipmentTrackingMap({
   events,
+  foId,
   height = 520,
   onSelectEvent,
+  pollMs = 3000,
+  historyLimit = 300,
 }: ShipmentTrackingMapProps) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   if (!apiKey) {
     return <div style={{ padding: 12, color: "crimson" }}>Missing VITE_GOOGLE_MAPS_API_KEY in env.</div>;
   }
-const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
+
+  const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
 
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey,
     libraries: GOOGLE_MAP_LIBRARIES,
-    //libraries: ["marker"] as any, // for AdvancedMarkerElement
   });
 
+  // ---- Existing points from events (Source/Destination markers and left list) ----
   const points = useMemo(() => {
-    
     return (events ?? [])
       .map((e) => {
         const coords = parseLatLng(e.fields);
@@ -140,24 +194,121 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
   }, [events]);
 
   const mapRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<Array<google.maps.marker.AdvancedMarkerElement>>([]);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
+  // markers
+  const sdMarkersRef = useRef<Array<google.maps.marker.AdvancedMarkerElement>>([]);
+  const truckMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // create / update markers when points change - ONLY SOURCE AND DESTINATION
+  // ---- Live tracking state ----
+  const [liveLatest, setLiveLatest] = useState<LivePoint | null>(null);
+  const [liveHistory, setLiveHistory] = useState<LivePoint[]>([]);
+
+  // 1) Poll latest point
+  useEffect(() => {
+    if (!foId) return;
+
+    let alive = true;
+    let t: any = null;
+
+    const tick = async () => {
+      try {
+        const j: any = await apiGetJson(`/api/tracking/latest?FoId=${encodeURIComponent(foId)}`);
+        if (!alive) return;
+
+        // server may return {} when nothing yet
+        const lat = toNum(j?.Latitude);
+        const lng = toNum(j?.Longitude);
+        const ts = toNum(j?.Timestamp);
+
+        if (lat == null || lng == null || ts == null) return;
+
+        setLiveLatest({
+          FoId: String(j.FoId || foId),
+          DriverId: j.DriverId ? String(j.DriverId) : undefined,
+          Latitude: lat,
+          Longitude: lng,
+          Accuracy: j.Accuracy == null ? null : toNum(j.Accuracy),
+          Timestamp: ts,
+          Speed: j.Speed == null ? null : toNum(j.Speed),
+          Bearing: j.Bearing == null ? null : toNum(j.Bearing),
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    tick();
+    t = setInterval(tick, pollMs);
+
+    return () => {
+      alive = false;
+      if (t) clearInterval(t);
+    };
+  }, [foId, pollMs]);
+
+  // 2) Poll history for live polyline
+  useEffect(() => {
+    if (!foId) return;
+
+    let alive = true;
+    let t: any = null;
+
+    const tick = async () => {
+      try {
+        const arr: any[] = await apiGetJson(
+          `/api/tracking/history?FoId=${encodeURIComponent(foId)}&limit=${encodeURIComponent(String(historyLimit))}`
+        );
+        if (!alive) return;
+
+        const cleaned: LivePoint[] = (Array.isArray(arr) ? arr : [])
+          .map((p) => {
+            const lat = toNum(p?.Latitude);
+            const lng = toNum(p?.Longitude);
+            const ts = toNum(p?.Timestamp);
+            if (lat == null || lng == null || ts == null) return null;
+
+            return {
+              FoId: String(p?.FoId || foId),
+              DriverId: p?.DriverId ? String(p.DriverId) : undefined,
+              Latitude: lat,
+              Longitude: lng,
+              Accuracy: p?.Accuracy == null ? null : toNum(p.Accuracy),
+              Timestamp: ts,
+              Speed: p?.Speed == null ? null : toNum(p.Speed),
+              Bearing: p?.Bearing == null ? null : toNum(p.Bearing),
+            };
+          })
+          .filter(Boolean) as LivePoint[];
+
+        setLiveHistory(cleaned);
+      } catch {
+        // ignore
+      }
+    };
+
+    tick();
+    t = setInterval(tick, Math.max(4000, pollMs * 2));
+
+    return () => {
+      alive = false;
+      if (t) clearInterval(t);
+    };
+  }, [foId, pollMs, historyLimit]);
+
+  // ---- Create / update Source & Destination markers (from events) ----
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
 
-    // clear previous markers
+    // clear previous S/D markers
     try {
-      markersRef.current.forEach((m) => {
-        (m as google.maps.marker.AdvancedMarkerElement).map = null;
-      });
+      sdMarkersRef.current.forEach((m) => ((m as any).map = null));
     } catch {
       /* empty */
     }
-    markersRef.current = [];
+    sdMarkersRef.current = [];
 
     if (!points || points.length === 0) return;
 
@@ -173,10 +324,8 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
       const color = role === "start" ? pinColors.start : pinColors.end;
       const label = role === "start" ? "Source" : "Destination";
 
-      const markerHtml = makeMarkerContent(color, label);
-
       const wrapper = document.createElement("div");
-      wrapper.innerHTML = markerHtml;
+      wrapper.innerHTML = makeMarkerContent(color, label);
       const contentEl = wrapper.firstElementChild as HTMLElement;
 
       const title = asText((p.event.fields as any)?.EventName ?? (p.event.fields as any)?.Code, label);
@@ -206,37 +355,78 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
         }
       });
 
-      markersRef.current.push(advancedMarker);
+      sdMarkersRef.current.push(advancedMarker);
     });
 
-    // fit bounds to all points (including intermediate ones)
+    // fit bounds initially to event points
     try {
       const bounds = new google.maps.LatLngBounds();
       points.forEach((pt) => bounds.extend(pt));
       mapRef.current.fitBounds(bounds, 80);
     } catch {
-      try {
-        mapRef.current.setCenter({ lat: points[0].lat, lng: points[0].lng });
-      } catch {
-        /* empty */
-      }
+      /* ignore */
     }
 
     return () => {
       try {
-        markersRef.current.forEach((m) => ((m as any).map = null));
-        markersRef.current = [];
+        sdMarkersRef.current.forEach((m) => ((m as any).map = null));
       } catch {
         /* empty */
       }
+      sdMarkersRef.current = [];
     };
   }, [isLoaded, points, onSelectEvent]);
 
+  // ---- Create / update TRUCK marker (liveLatest) ----
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current) return;
+    if (!liveLatest) return;
+
+    const pos = { lat: liveLatest.Latitude, lng: liveLatest.Longitude };
+
+    // create
+    if (!truckMarkerRef.current) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = makeTruckMarkerHtml(liveLatest.Speed);
+      const contentEl = wrapper.firstElementChild as HTMLElement;
+
+      truckMarkerRef.current = new (google.maps as any).marker.AdvancedMarkerElement({
+        position: pos,
+        map: mapRef.current,
+        content: contentEl,
+        title: "Truck",
+      }) as google.maps.marker.AdvancedMarkerElement;
+
+      return;
+    }
+
+    // update position + label
+    try {
+      (truckMarkerRef.current as any).position = pos;
+
+      // refresh marker content (speed badge)
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = makeTruckMarkerHtml(liveLatest.Speed);
+      const contentEl = wrapper.firstElementChild as HTMLElement;
+      (truckMarkerRef.current as any).content = contentEl;
+    } catch {
+      /* ignore */
+    }
+
+    // smooth pan so you see movement
+    try {
+      mapRef.current.panTo(pos);
+    } catch {
+      /* ignore */
+    }
+  }, [isLoaded, liveLatest]);
+
+  // ---- Keep your selectedId focus behavior ----
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
     if (!selectedId) return;
 
-    const m = markersRef.current.find((mk) => (mk as any).__eventId === selectedId);
+    const m = sdMarkersRef.current.find((mk) => (mk as any).__eventId === selectedId);
     if (!m) return;
 
     try {
@@ -249,7 +439,12 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
     }
   }, [selectedId, isLoaded]);
 
-  const path = useMemo(() => points.map((p) => ({ lat: p.lat, lng: p.lng })), [points]);
+  // ---- polylines ----
+  const eventPath = useMemo(() => points.map((p) => ({ lat: p.lat, lng: p.lng })), [points]);
+
+  const livePath = useMemo(() => {
+    return (liveHistory || []).map((p) => ({ lat: p.Latitude, lng: p.Longitude }));
+  }, [liveHistory]);
 
   return (
     <div
@@ -275,6 +470,10 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
       >
         <div style={{ padding: "12px 14px", borderBottom: "1px solid #eee", background: "#f8fafc" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Shipment Journey</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+            Live: {liveLatest ? new Date(liveLatest.Timestamp).toLocaleTimeString() : "waiting..."}
+            {liveLatest?.Speed != null ? ` • ${Math.round(liveLatest.Speed)} km/h` : ""}
+          </div>
         </div>
 
         <div style={{ overflowY: "auto", padding: 8 }}>
@@ -317,14 +516,12 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
                   setSelectedId(ev.id);
                   onSelectEvent?.(ev);
 
-                  const m = markersRef.current.find((mk) => (mk as any).__eventId === ev.id);
+                  const m = sdMarkersRef.current.find((mk) => (mk as any).__eventId === ev.id);
                   if (m) {
                     google.maps.event.trigger(m as any, "click");
-                  } else {
-                    if (mapRef.current) {
-                      mapRef.current.panTo({ lat: p.lat, lng: p.lng });
-                      mapRef.current.setZoom(12);
-                    }
+                  } else if (mapRef.current) {
+                    mapRef.current.panTo({ lat: p.lat, lng: p.lng });
+                    mapRef.current.setZoom(12);
                   }
                 }}
                 style={{
@@ -372,17 +569,11 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
                 </div>
 
                 <div style={{ marginTop: 6, color: "#374151", fontSize: 13 }}>
-<div style={{ marginBottom: 6 }}>
-  <strong>Stop ID:</strong>{" "}
-  <span style={{ color: "#334155" }}>{stopId}</span>
-</div>
-
-<div style={{ fontSize: 12, color: "#6b7280" }}>
-  <strong>Time:</strong> {timeRaw}
-</div>
-
+                  <div style={{ marginBottom: 6 }}>
+                    <strong>Stop ID:</strong> <span style={{ color: "#334155" }}>{stopId}</span>
+                  </div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    <strong>Time:</strong> {timeRaw}
+                    <strong>Time:</strong> {asText(timeRaw, "—")}
                   </div>
                   {!showMarkerIndicator && (
                     <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4, fontStyle: "italic" }}>
@@ -417,7 +608,6 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
               center={points.length ? { lat: points[0].lat, lng: points[0].lng } : { lat: 20, lng: 0 }}
               zoom={3}
               options={{
-                mapId: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
                 mapTypeId: "roadmap",
                 streetViewControl: false,
                 fullscreenControl: false,
@@ -434,82 +624,66 @@ const GOOGLE_MAP_LIBRARIES: ("marker")[] = ["marker"];
               }}
               onLoad={(map) => {
                 mapRef.current = map;
-                if (points.length > 0) {
-                  try {
-                    const bounds = new google.maps.LatLngBounds();
+
+                // initial fit: events if available, else live point
+                try {
+                  const bounds = new google.maps.LatLngBounds();
+                  if (points.length > 0) {
                     points.forEach((pt) => bounds.extend(pt));
                     map.fitBounds(bounds, 80);
-                  } catch {
-                    map.setCenter({ lat: points[0].lat, lng: points[0].lng });
-                    map.setZoom(4);
+                  } else if (liveLatest) {
+                    bounds.extend({ lat: liveLatest.Latitude, lng: liveLatest.Longitude });
+                    map.fitBounds(bounds, 200);
                   }
+                } catch {
+                  // ignore
                 }
               }}
               onUnmount={() => {
                 mapRef.current = null;
+
                 try {
-                  markersRef.current.forEach((m) => ((m as any).map = null));
+                  sdMarkersRef.current.forEach((m) => ((m as any).map = null));
                 } catch {
                   /* empty */
                 }
-                markersRef.current = [];
+                sdMarkersRef.current = [];
+
+                try {
+                  if (truckMarkerRef.current) (truckMarkerRef.current as any).map = null;
+                } catch {
+                  /* empty */
+                }
+                truckMarkerRef.current = null;
+
                 if (infoWindowRef.current) {
                   infoWindowRef.current.close();
                   infoWindowRef.current = null;
                 }
               }}
             >
-              {path.length >= 2 && (
+              {/* Live polyline (truck trail) */}
+              {livePath.length >= 2 && (
                 <Polyline
-                  path={path}
+                  path={livePath}
                   options={{
-                    strokeColor: pinColors.mid,
-                    strokeOpacity: 0.7,
-                    strokeWeight: 3,
+                    strokeOpacity: 0.8,
+                    strokeWeight: 4,
                     geodesic: true,
                     clickable: false,
-                    icons: [
-                      {
-                        icon: {
-                          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                          scale: 2.5,
-                          strokeColor: pinColors.mid,
-                          strokeWeight: 2,
-                          fillColor: pinColors.mid,
-                          fillOpacity: 0.8,
-                        },
-                        repeat: "120px",
-                      },
-                    ],
                   }}
                 />
               )}
 
-              {points.length > 2 && (
+              {/* Event polyline (journey) */}
+              {eventPath.length >= 2 && (
                 <Polyline
-                  path={[
-                    { lat: points[0].lat, lng: points[0].lng },
-                    { lat: points[points.length - 1].lat, lng: points[points.length - 1].lng },
-                  ]}
+                  path={eventPath}
                   options={{
-                    strokeColor: "#9ca3af",
-                    strokeOpacity: 0,
-                    strokeWeight: 2,
+                    strokeOpacity: 0.35,
+                    strokeWeight: 3,
                     geodesic: true,
                     clickable: false,
-                    icons: [
-                      {
-                        icon: {
-                          path: "M 0,-1 0,1",
-                          strokeOpacity: 0.4,
-                          strokeColor: "#9ca3af",
-                          strokeWeight: 2,
-                          scale: 3,
-                        },
-                        offset: "0",
-                        repeat: "15px",
-                      },
-                    ],
                   }}
                 />
               )}
