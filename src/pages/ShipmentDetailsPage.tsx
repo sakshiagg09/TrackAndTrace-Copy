@@ -245,11 +245,14 @@ export default function ShipmentDetailsPage() {
             <Typography style={{ fontWeight: 600, marginBottom: 8 }}>Tracking Map</Typography>
 
             <ShipmentTrackingMap
-              foId={String(id)}                 // ✅ needed for /tracking/latest & /tracking/history
-              events={events.map((e) => ({ id: e.id, fields: e }))}
+              foId={String(id)}
+              events={events.map((e: any, i: number) => ({
+                id: `${e.FoId}|${e.StopId}|${e.Action}|${e.CreatedAt || i}`,
+                fields: e,
+              }))}
               height={520}
-              pollMs={3000}                     // ✅ move marker every 3s
-              historyLimit={300}                // ✅ polyline points from live history
+              pollMs={3000}
+              historyLimit={300}
             />
           </Paper>
         )}

@@ -69,6 +69,7 @@ function asText(v: unknown, fallback = ""): string {
   }
 }
 
+/** ✅ IMPORTANT: also support your DB payload keys Latitude/Longitude */
 function parseLatLng(fields: Record<string, any>) {
   const latRaw =
     fields?.EventLat ??
@@ -89,7 +90,7 @@ function parseLatLng(fields: Record<string, any>) {
   const lat = latRaw == null ? NaN : parseFloat(String(latRaw));
   const lng = lonRaw == null ? NaN : parseFloat(String(lonRaw));
 
-  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return { lat, lng };
 }
 
@@ -99,15 +100,21 @@ function escapeHtml(s: unknown) {
 }
 
 function buildListItemHtml(fields: Record<string, unknown>) {
-  const title = asText((fields as any)?.EventName ?? (fields as any)?.Code, "Event");
+  const action = asText((fields as any)?.Action ?? (fields as any)?.action, "Event");
   const stopId = asText((fields as any)?.StopId ?? (fields as any)?.stopId, "—");
+  const createdAt = asText((fields as any)?.CreatedAt ?? (fields as any)?.createdAt, "");
 
   return `
     <div style="font-size:13px;max-width:260px">
-      <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(title)}</div>
+      <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(action)}</div>
       <div style="font-size:12px;color:#374151;margin-bottom:4px;">
         <strong>Stop ID:</strong> ${escapeHtml(stopId)}
       </div>
+      ${
+        createdAt
+          ? `<div style="font-size:12px;color:#6b7280;"><strong>Time:</strong> ${escapeHtml(createdAt)}</div>`
+          : ""
+      }
     </div>
   `;
 }
@@ -182,11 +189,11 @@ export default function ShipmentTrackingMap({
     libraries: GOOGLE_MAP_LIBRARIES,
   });
 
-  // ---- Existing points from events (Source/Destination markers and left list) ----
+  // ---- Existing points from events ----
   const points = useMemo(() => {
     return (events ?? [])
       .map((e) => {
-        const coords = parseLatLng(e.fields);
+        const coords = parseLatLng(e.fields as any);
         if (!coords) return null;
         return { ...coords, event: e };
       })
@@ -218,11 +225,9 @@ export default function ShipmentTrackingMap({
         const j: any = await apiGetJson(`/api/tracking/latest?FoId=${encodeURIComponent(foId)}`);
         if (!alive) return;
 
-        // server may return {} when nothing yet
         const lat = toNum(j?.Latitude);
         const lng = toNum(j?.Longitude);
         const ts = toNum(j?.Timestamp);
-
         if (lat == null || lng == null || ts == null) return;
 
         setLiveLatest({
@@ -298,6 +303,20 @@ export default function ShipmentTrackingMap({
     };
   }, [foId, pollMs, historyLimit]);
 
+  // ✅ KEY FIX: whenever event points exist/change, fit bounds (not only onLoad)
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current) return;
+    if (!points || points.length === 0) return;
+
+    try {
+      const bounds = new google.maps.LatLngBounds();
+      points.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+      mapRef.current.fitBounds(bounds, 80);
+    } catch {
+      // ignore
+    }
+  }, [isLoaded, points]);
+
   // ---- Create / update Source & Destination markers (from events) ----
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
@@ -328,7 +347,7 @@ export default function ShipmentTrackingMap({
       wrapper.innerHTML = makeMarkerContent(color, label);
       const contentEl = wrapper.firstElementChild as HTMLElement;
 
-      const title = asText((p.event.fields as any)?.EventName ?? (p.event.fields as any)?.Code, label);
+      const title = asText((p.event.fields as any)?.Action ?? (p.event.fields as any)?.EventName ?? "Event", label);
 
       const advancedMarker = new (google.maps as any).marker.AdvancedMarkerElement({
         position: { lat: p.lat, lng: p.lng },
@@ -358,15 +377,6 @@ export default function ShipmentTrackingMap({
       sdMarkersRef.current.push(advancedMarker);
     });
 
-    // fit bounds initially to event points
-    try {
-      const bounds = new google.maps.LatLngBounds();
-      points.forEach((pt) => bounds.extend(pt));
-      mapRef.current.fitBounds(bounds, 80);
-    } catch {
-      /* ignore */
-    }
-
     return () => {
       try {
         sdMarkersRef.current.forEach((m) => ((m as any).map = null));
@@ -384,7 +394,6 @@ export default function ShipmentTrackingMap({
 
     const pos = { lat: liveLatest.Latitude, lng: liveLatest.Longitude };
 
-    // create
     if (!truckMarkerRef.current) {
       const wrapper = document.createElement("div");
       wrapper.innerHTML = makeTruckMarkerHtml(liveLatest.Speed);
@@ -400,11 +409,9 @@ export default function ShipmentTrackingMap({
       return;
     }
 
-    // update position + label
     try {
       (truckMarkerRef.current as any).position = pos;
 
-      // refresh marker content (speed badge)
       const wrapper = document.createElement("div");
       wrapper.innerHTML = makeTruckMarkerHtml(liveLatest.Speed);
       const contentEl = wrapper.firstElementChild as HTMLElement;
@@ -413,15 +420,15 @@ export default function ShipmentTrackingMap({
       /* ignore */
     }
 
-    // smooth pan so you see movement
+    // optional: pan with truck only if no event points
     try {
-      mapRef.current.panTo(pos);
+      if (!points || points.length === 0) mapRef.current.panTo(pos);
     } catch {
       /* ignore */
     }
-  }, [isLoaded, liveLatest]);
+  }, [isLoaded, liveLatest, points]);
 
-  // ---- Keep your selectedId focus behavior ----
+  // ---- Keep selectedId focus behavior ----
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
     if (!selectedId) return;
@@ -441,10 +448,7 @@ export default function ShipmentTrackingMap({
 
   // ---- polylines ----
   const eventPath = useMemo(() => points.map((p) => ({ lat: p.lat, lng: p.lng })), [points]);
-
-  const livePath = useMemo(() => {
-    return (liveHistory || []).map((p) => ({ lat: p.Latitude, lng: p.Longitude }));
-  }, [liveHistory]);
+  const livePath = useMemo(() => (liveHistory || []).map((p) => ({ lat: p.Latitude, lng: p.Longitude })), [liveHistory]);
 
   return (
     <div
@@ -504,7 +508,7 @@ export default function ShipmentTrackingMap({
               showMarkerIndicator = false;
             }
 
-            const title = asText((f as any).EventName ?? (f as any).Code, "Event");
+            const title = asText((f as any).Action ?? (f as any).EventName ?? (f as any).Code, "Event");
             const stopId = asText((f as any).StopId ?? (f as any).stopId, "—");
             const timeRaw = (f as any).CreatedAt ?? (f as any).createdAt ?? null;
 
@@ -624,20 +628,6 @@ export default function ShipmentTrackingMap({
               }}
               onLoad={(map) => {
                 mapRef.current = map;
-
-                // initial fit: events if available, else live point
-                try {
-                  const bounds = new google.maps.LatLngBounds();
-                  if (points.length > 0) {
-                    points.forEach((pt) => bounds.extend(pt));
-                    map.fitBounds(bounds, 80);
-                  } else if (liveLatest) {
-                    bounds.extend({ lat: liveLatest.Latitude, lng: liveLatest.Longitude });
-                    map.fitBounds(bounds, 200);
-                  }
-                } catch {
-                  // ignore
-                }
               }}
               onUnmount={() => {
                 mapRef.current = null;
