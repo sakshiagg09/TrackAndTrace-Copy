@@ -97,13 +97,17 @@ function escapeHtml(s: unknown) {
 
 function buildListItemHtml(fields: Record<string, unknown>) {
   const title = asText((fields as any)?.EventName ?? (fields as any)?.Code, "Event");
-  const stopId = asText((fields as any)?.StopId ?? (fields as any)?.stopId, "—");
+ const location = asText((fields as any)?.Location, "—");
+const timeRaw = (fields as any).ActualReportedTime ?? null;
 
   return `
     <div style="font-size:13px;max-width:260px">
       <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(title)}</div>
       <div style="font-size:12px;color:#374151;margin-bottom:4px;">
-        <strong>Stop ID:</strong> ${escapeHtml(stopId)}
+        <strong>Location:</strong> ${escapeHtml(location)}
+              <div style="font-size:12px;color:#374151;margin-bottom:4px;">
+        <strong>Time:</strong> ${escapeHtml(timeRaw)}
+        </div>
       </div>
     </div>
   `;
@@ -552,8 +556,8 @@ export default function ShipmentTrackingMap({
             const showMarkerIndicator = isFirst || isLast;
 
             const title = asText((f as any).EventName ?? (f as any).Code, "Event");
-            const stopId = asText((f as any).StopId ?? (f as any).stopId, "—");
-            const timeRaw = (f as any).CreatedAt ?? (f as any).createdAt ?? null;
+            const location = asText((f as any).Location, "—");
+            const timeRaw = (f as any).ActualReportedTime ?? null;
 
             return (
               <div
@@ -614,7 +618,7 @@ export default function ShipmentTrackingMap({
 
                 <div style={{ marginTop: 6, color: "#374151", fontSize: 13 }}>
                   <div style={{ marginBottom: 6 }}>
-                    <strong>Stop ID:</strong> <span style={{ color: "#334155" }}>{stopId}</span>
+                    <strong>Location:</strong> <span style={{ color: "#334155" }}>{location}</span>
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
                     <strong>Time:</strong> {asText(timeRaw, "—")}
