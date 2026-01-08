@@ -371,7 +371,7 @@ export default function ShipmentTrackingMap({
     markerPoints.forEach(({ point: p, role }) => {
       const color = role === "start" ? pinColors.start : pinColors.end;
       const label = role === "start" ? "Source" : "Destination";
-      const title = asText((p.event.fields as any)?.EventName ?? (p.event.fields as any)?.Code, label);
+      const title = asText((p.event.fields as any)?.Event ?? (p.event.fields as any)?.Code, label);
       const pos = { lat: p.lat, lng: p.lng };
 
       console.log("[MAP][MARKER] create", { role, label, title, pos, eventId: p.event.id });
@@ -555,7 +555,13 @@ export default function ShipmentTrackingMap({
             const pointColor = isFirst ? pinColors.start : isLast ? pinColors.end : pinColors.mid;
             const showMarkerIndicator = isFirst || isLast;
 
-            const title = asText((f as any).EventName ?? (f as any).Code, "Event");
+            const title = asText(
+  (f as any).Action ??        // 👈 backend table column
+  (f as any).Event ??
+  (f as any).Code,
+  "Event"
+);
+
             const location = asText((f as any).Location, "—");
             const timeRaw = (f as any).ActualReportedTime ?? null;
 
