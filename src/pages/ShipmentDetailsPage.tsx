@@ -84,13 +84,21 @@ export default function ShipmentDetailsPage() {
   const [events, setEvents] = useState<ShipmentEvent[]>([]);
 
   const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
-
+const EVENTS_TABLE_COLUMNS = [
+  "Event",
+  "FoId",
+  "Actual ReportedT ime",
+  "Planned Time",
+  "Location",
+];
   const eventFieldDefs = useMemo(() => {
   if (!events.length) return [];
 
   const sample = events[0];
 
-  return Object.keys(sample).map((key, index) => ({
+  return Object.keys(sample)
+  .filter((key) => EVENTS_TABLE_COLUMNS.includes(key)) //added filter to limit columns
+  .map((key, index) => ({
     title: key,
     technicalName: key,
     visibleInAdapt: true,
@@ -252,10 +260,15 @@ export default function ShipmentDetailsPage() {
 
             <ShipmentTrackingMap
               foId={String(id)}
-              events={events.map((e: any, i: number) => ({
-                id: `${e.FoId}|${e.StopId}|${e.Action}|${e.CreatedAt || i}`,
-                fields: e,
-              }))}
+events={events.map((e: any, i: number) => ({
+  id: `${e.FoId}|${e.StopId}|${i}`,
+  fields: {
+    Event: e.Event,
+    ActualReportedTime: e.ActualReportedTime,
+    Location: e.Location,
+  },
+}))}
+
               height={520}
               pollMs={3000}
               historyLimit={300}
