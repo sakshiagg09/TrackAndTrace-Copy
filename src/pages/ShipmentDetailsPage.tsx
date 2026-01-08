@@ -267,21 +267,26 @@ const eventFieldDefs = useMemo(() => {
           <Paper elevation={2} style={{ padding: 14 }}>
             <Typography style={{ fontWeight: 600, marginBottom: 8 }}>Tracking Map</Typography>
 
-            <ShipmentTrackingMap
-              foId={String(id)}
-events={events.map((e: any, i: number) => ({
-  id: `${e.FoId}|${e.StopId}|${i}`,
-  fields: {
-    Event: e.Event,
-    ActualReportedTime: e.ActualReportedTime,
-    Location: e.Location,
-  },
-}))}
+<ShipmentTrackingMap
+  foId={String(id)}
+  events={events.map((e: any, i: number) => ({
+    id: `${e.FoId}|${e.StopId}|${i}`,
+    fields: {
+      // 👀 DISPLAY FIELDS (card)
+      Event: e.Event,
+      ActualReportedTime: e.ActualReportedTime,
+      Location: e.Location,
 
-              height={520}
-              pollMs={3000}
-              historyLimit={300}
-            />
+      // 🧠 LOGIC FIELDS (map needs these)
+      Latitude: e.Latitude,
+      Longitude: e.Longitude,
+    },
+  }))}
+  height={520}
+  pollMs={3000}
+  historyLimit={300}
+/>
+
           </Paper>
         )}
 
