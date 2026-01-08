@@ -272,12 +272,12 @@ const eventFieldDefs = useMemo(() => {
   events={events.map((e: any, i: number) => ({
     id: `${e.FoId}|${e.StopId}|${i}`,
     fields: {
-      // 👀 DISPLAY FIELDS (card)
+      // 👀 UI DISPLAY
       Event: e.Event,
+      Location: e.Location,              // 👈 Location shown instead of StopId
       ActualReportedTime: e.ActualReportedTime,
-      Location: e.Location,
 
-      // 🧠 LOGIC FIELDS (map needs these)
+      // 🧠 MAP LOGIC (must stay)
       Latitude: e.Latitude,
       Longitude: e.Longitude,
     },
@@ -286,6 +286,7 @@ const eventFieldDefs = useMemo(() => {
   pollMs={3000}
   historyLimit={300}
 />
+
 
           </Paper>
         )}
