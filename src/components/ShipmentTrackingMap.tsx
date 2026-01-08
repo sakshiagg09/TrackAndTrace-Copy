@@ -96,7 +96,7 @@ function escapeHtml(s: unknown) {
 }
 
 function buildListItemHtml(fields: Record<string, unknown>) {
-  const title = asText((fields as any)?.EventName ?? (fields as any)?.Code, "Event");
+  const title = asText((fields as any)?.Event ?? (fields as any)?.Code, "Event");
  const location = asText((fields as any)?.Location, "—");
 const timeRaw = (fields as any).ActualReportedTime ?? null;
 
@@ -106,7 +106,7 @@ const timeRaw = (fields as any).ActualReportedTime ?? null;
       <div style="font-size:12px;color:#374151;margin-bottom:4px;">
         <strong>Location:</strong> ${escapeHtml(location)}
               <div style="font-size:12px;color:#374151;margin-bottom:4px;">
-        <strong>Time:</strong> ${escapeHtml(timeRaw)}
+        <strong>Actual Reported Time:</strong> ${escapeHtml(timeRaw)}
         </div>
       </div>
     </div>
@@ -621,7 +621,7 @@ export default function ShipmentTrackingMap({
                     <strong>Location:</strong> <span style={{ color: "#334155" }}>{location}</span>
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    <strong>Time:</strong> {asText(timeRaw, "—")}
+                    <strong>Actual Reported Time:</strong> {asText(timeRaw, "—")}
                   </div>
                 </div>
               </div>
