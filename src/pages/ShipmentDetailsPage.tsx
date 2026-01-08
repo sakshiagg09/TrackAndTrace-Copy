@@ -87,24 +87,33 @@ export default function ShipmentDetailsPage() {
 const EVENTS_TABLE_COLUMNS = [
   "Event",
   "FoId",
-  "Actual ReportedT ime",
-  "Planned Time",
+  "ActualReportedTime",
+  "PlannedTime",
   "Location",
 ];
-  const eventFieldDefs = useMemo(() => {
+const EVENT_COLUMN_TITLES: Record<string, string> = {
+  Event: "Event",
+  FoId: "FO ID",
+  ActualReportedTime: "Actual Reported Time",
+  PlannedTime: "Planned Time",
+  Location: "Location",
+};
+
+const eventFieldDefs = useMemo(() => {
   if (!events.length) return [];
 
   const sample = events[0];
 
   return Object.keys(sample)
-  .filter((key) => EVENTS_TABLE_COLUMNS.includes(key)) //added filter to limit columns
-  .map((key, index) => ({
-    title: key,
-    technicalName: key,
-    visibleInAdapt: true,
-    order: index
-  }));
+    .filter((key) => EVENTS_TABLE_COLUMNS.includes(key))
+    .map((key, index) => ({
+      title: EVENT_COLUMN_TITLES[key] ?? key,
+      technicalName: key,
+      visibleInAdapt: true,
+      order: index,
+    }));
 }, [events]);
+
 
 
   const [adaptOpen, setAdaptOpen] = useState(false);
