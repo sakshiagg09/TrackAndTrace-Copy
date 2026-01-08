@@ -85,13 +85,19 @@ export default function ShipmentDetailsPage() {
 
   const [visibleKeys, setVisibleKeys] = useState<string[]>([]);
 
-  const eventVisibleFields = useMemo(() => {
-    if (!events.length) return [];
-    const sampleEvent = events[0];
-    return uiFields.filter(
-      (f) => visibleKeys.includes(f.technicalName) && sampleEvent[f.technicalName] !== undefined
-    );
-  }, [uiFields, visibleKeys, events]);
+  const eventFieldDefs = useMemo(() => {
+  if (!events.length) return [];
+
+  const sample = events[0];
+
+  return Object.keys(sample).map((key, index) => ({
+    title: key,
+    technicalName: key,
+    visibleInAdapt: true,
+    order: index
+  }));
+}, [events]);
+
 
   const [adaptOpen, setAdaptOpen] = useState(false);
 
@@ -259,7 +265,7 @@ export default function ShipmentDetailsPage() {
 
         <EventsTable
           rows={events.map((e) => ({ id: e.id, fields: e }))}
-          fieldDefs={eventVisibleFields as any}
+          fieldDefs={eventFieldDefs as any}
           storageKey={`events:${id}`}
         />
 
