@@ -68,7 +68,11 @@ async function fetchTrackingData(foId: string): Promise<ShipmentData | null> {
 async function fetchEvents(foId: string): Promise<ShipmentEvent[]> {
   return apiGet(`/api/events?foId=${encodeURIComponent(foId)}`);
 }
-
+async function updateSkyByFoId(foId: string): Promise<void> {
+  await fetch(`${API_BASE}/api/sky/update/${encodeURIComponent(foId)}`, {
+    method: "POST",
+  });
+}
 /* =========================================================
    MAIN COMPONENT
 ========================================================= */
@@ -154,7 +158,19 @@ const eventFieldDefs = useMemo(() => {
 
     loadAll();
   }, [id]);
+useEffect(() => {
+  if (!id) return;
 
+  console.log("☁️ Triggering SKY update for FoId:", id);
+
+  updateSkyByFoId(id)
+    .then(() => {
+      console.log("✅ SKY update completed for FoId:", id);
+    })
+    .catch((err) => {
+      console.error("❌ SKY update failed for FoId:", id, err);
+    });
+}, [id]);
   /* ---------------- INIT VISIBLE FIELDS ---------------- */
   useEffect(() => {
     if (!uiFields.length) return;
