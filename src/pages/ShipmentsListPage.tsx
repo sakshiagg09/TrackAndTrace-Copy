@@ -11,7 +11,7 @@ import {
 /* ---------------- TYPES ---------------- */
 
 interface GraphItem {
-  id: string;
+  id: string;                 // FoId will be used here
   fields: Record<string, unknown>;
 }
 
@@ -22,9 +22,12 @@ interface UIFieldConfig {
   order?: number;
 }
 
-/* ---------------- COMPONENT ---------------- */
+/* ---------------- CONFIG ---------------- */
+
 const API_BASE = import.meta.env.VITE_API_BASE;
-console.log("API_BASE:", API_BASE);
+
+/* ---------------- COMPONENT ---------------- */
+
 const ShipmentsListPage: React.FC = () => {
   const [rows, setRows] = useState<GraphItem[]>([]);
   const [fieldDefs, setFieldDefs] = useState<UIFieldConfig[]>([]);
@@ -47,9 +50,7 @@ const ShipmentsListPage: React.FC = () => {
 
       /* ---------- 1. LOAD UI FIELD CONFIG ---------- */
       try {
-        const cfgRes = await 
-          fetch(`${API_BASE}/api/ui-fields-config`
-        );
+        const cfgRes = await fetch(`${API_BASE}/api/ui-fields-config`);
 
         if (!cfgRes.ok) {
           throw new Error(`UI config error ${cfgRes.status}`);
@@ -73,23 +74,22 @@ const ShipmentsListPage: React.FC = () => {
           throw new Error(`Shipment API error ${dataRes.status}`);
         }
 
-interface ShipmentRow {
-  FoId?: string | null;
-  [key: string]: unknown;
-}
+        interface ShipmentRow {
+          FoId?: string | null;
+          [key: string]: unknown;
+        }
 
+        const dbRows: ShipmentRow[] = await dataRes.json();
 
-const dbRows: ShipmentRow[] = await dataRes.json();
+        // ✅ IMPORTANT: FoId used as ID
+        const mapped: GraphItem[] = dbRows
+          .filter((row): row is ShipmentRow => Boolean(row.FoId))
+          .map((row) => ({
+            id: String(row.FoId),   // FoId passed to next page
+            fields: row
+          }));
 
-const mapped: GraphItem[] = dbRows
-  .filter((row): row is ShipmentRow => Boolean(row.FoId))
-  .map((row) => ({
-    id: String(row.FoId),
-    fields: row
-  }));
-
-setRows(mapped);
-
+        setRows(mapped);
       } catch (e: unknown) {
         console.error("Shipment load error", e);
         setError(e instanceof Error ? e.message : String(e));
@@ -123,6 +123,7 @@ setRows(mapped);
   return (
     <PageWrapper>
       <div className="max-w-7xl mx-auto">
+
         {cfgLoading && (
           <Box sx={{ p: 2, display: "flex", gap: 2 }}>
             <CircularProgress size={20} />
